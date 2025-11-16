@@ -28,8 +28,8 @@ class DlamDeBruijnTests extends AnyFlatSpec {
 
   IR shape (essentials)
   ---------------------
-  - Outer TLambda introduces α (so α ≡ bvar(0) in its body).
-  - Inside, a single VLambda: λ(x : bvar(0)) . vreturn x : bvar(0)
+  - Outer TLambda introduces α (so α ≡ bvar(IntData(0)) in its body).
+  - Inside, a single VLambda: λ(x : bvar(IntData(0))) . vreturn x : bvar(IntData(0))
   - The TLambda returns that VLambda, so the result type is ∀α. α→α.
 
   What we assert
@@ -44,7 +44,7 @@ class DlamDeBruijnTests extends AnyFlatSpec {
     //   body  = !dlam.fun<!dlam.bvar<0> -> !dlam.bvar<0>>
     //   forall = !dlam.forall<body>
     //
-    val bodyTy: DlamType = fun(bvar(0), bvar(0))
+    val bodyTy: DlamType = fun(bvar(IntData(0)), bvar(IntData(0)))
     val forallTy: DlamType = forall(bodyTy)
 
     //
@@ -62,10 +62,10 @@ class DlamDeBruijnTests extends AnyFlatSpec {
         Seq(
           Block(
             // one argument of type !dlam.bvar<0>
-            bvar(0),
+            bvar(IntData(0)),
             (xVal: Value[Attribute]) => {
               val x = xVal.asInstanceOf[Value[TypeAttribute]]
-              val vret = VReturn(x, expected = bvar(0))
+              val vret = VReturn(x, expected = bvar(IntData(0)))
               Seq(vret)
             }
           )
@@ -137,7 +137,7 @@ class DlamDeBruijnTests extends AnyFlatSpec {
   }
 
   /*
-  Test: Nested TLambda + TApply (de Bruijn) — instantiate ∀ with bvar(0)
+  Test: Nested TLambda + TApply (de Bruijn) — instantiate ∀ with bvar(IntData(0))
   ======================================================================
 
   Surface idea
@@ -149,17 +149,17 @@ class DlamDeBruijnTests extends AnyFlatSpec {
 
   De Bruijn view
   --------------
-  - In G’s body: β ≡ bvar(0), α ≡ bvar(1).
-  - The outer TApply uses argType = bvar(0) (that outer α).
+  - In G’s body: β ≡ bvar(IntData(0)), α ≡ bvar(IntData(1)).
+  - The outer TApply uses argType = bvar(IntData(0)) (that outer α).
 
   What we assert
   --------------
   - Building and verifying succeeds.
   - Printing shows both tlambda’s, the vlam, the tapply, and the types.
    */
-  "Nested tlambda + tapply (de Bruijn) IR" should "instantiate ∀ with bvar(0) and type-check" in {
+  "Nested tlambda + tapply (de Bruijn) IR" should "instantiate ∀ with bvar(IntData(0)) and type-check" in {
     // Common types under the *current* type binder
-    val bodyTy: DlamType = fun(bvar(0), bvar(0)) // α -> α
+    val bodyTy: DlamType = fun(bvar(IntData(0)), bvar(IntData(0))) // α -> α
     val forallTy: DlamType = forall(bodyTy) // ∀α. α -> α
 
     // Build the inner polymorphic function:
@@ -172,10 +172,10 @@ class DlamDeBruijnTests extends AnyFlatSpec {
       Region(
         Seq(
           Block(
-            bvar(0), // refers to %U
+            bvar(IntData(0)), // refers to %U
             (xVal: Value[Attribute]) => {
               val x = xVal.asInstanceOf[Value[TypeAttribute]]
-              Seq(VReturn(x, expected = bvar(0)))
+              Seq(VReturn(x, expected = bvar(IntData(0))))
             }
           )
         )
@@ -210,7 +210,11 @@ class DlamDeBruijnTests extends AnyFlatSpec {
     val tapplyResultTy = bodyTy // instantiate ∀ with α gives α -> α
     val hRes = Result[TypeAttribute](tapplyResultTy)
     val tapply =
-      TApply(polymorphicFun = inner_tLambdaRes, argType = bvar(0), res = hRes)
+      TApply(
+        polymorphicFun = inner_tLambdaRes,
+        argType = bvar(IntData(0)),
+        res = hRes
+      )
     tapply.verify().isRight shouldBe true
 
     val outer_tRet = TReturn(value = hRes, expected = tapplyResultTy)
@@ -274,7 +278,7 @@ class DlamDeBruijnTests extends AnyFlatSpec {
   - TApply verifies when the result type matches the instantiated one.
    */
   "Instantiate to a ground type (i32)" should "compute α→α @ α=i32 == i32→i32" in {
-    val alphaToAlpha: TypeAttribute = fun(bvar(0), bvar(0))
+    val alphaToAlpha: TypeAttribute = fun(bvar(IntData(0)), bvar(IntData(0)))
     val poly: TypeAttribute = forall(alphaToAlpha)
 
     val i32Ty: TypeAttribute = I32 // wrap builtin i32
@@ -313,7 +317,7 @@ class DlamDeBruijnTests extends AnyFlatSpec {
     "return the same value" in {
 
       // ---- Types we use ----
-      val alphaId: DlamType = fun(bvar(0), bvar(0)) // α -> α
+      val alphaId: DlamType = fun(bvar(IntData(0)), bvar(IntData(0))) // α -> α
       val polyId: DlamType = forall(alphaId) // ∀α. α -> α
       val i32Ty: TypeAttribute = I32
       val i32Id: DlamType = fun(i32Ty, i32Ty)
@@ -324,10 +328,10 @@ class DlamDeBruijnTests extends AnyFlatSpec {
         Region(
           Seq(
             Block(
-              bvar(0),
+              bvar(IntData(0)),
               (x: Value[Attribute]) => {
                 val xd = x.asInstanceOf[Value[TypeAttribute]]
-                Seq(VReturn(xd, expected = bvar(0)))
+                Seq(VReturn(xd, expected = bvar(IntData(0))))
               }
             )
           )
@@ -424,8 +428,8 @@ class DlamDeBruijnTests extends AnyFlatSpec {
 
   Checks
   ------
-  - shift(1, 0, bvar(0)) = bvar(1)
-  - shift(1, 1, bvar(0)) = bvar(0)    // 0 < cutoff ⇒ unchanged
+  - shift(1, 0, bvar(IntData(0))) = bvar(IntData(1))
+  - shift(1, 1, bvar(IntData(0))) = bvar(IntData(0))    // 0 < cutoff ⇒ unchanged
   - shift(0, 0, bvar(42)) = bvar(42)
 
   What we assert
@@ -436,15 +440,15 @@ class DlamDeBruijnTests extends AnyFlatSpec {
     import DlamTy.*, DBI.*
 
     // shift 1 at cutoff 0: 0 -> 1, 1 -> 2
-    shift(1, 0, bvar(0)) shouldEqual bvar(1)
-    shift(1, 0, bvar(1)) shouldEqual bvar(2)
+    shift(1, 0, bvar(IntData(0))) shouldEqual bvar(IntData(1))
+    shift(1, 0, bvar(IntData(1))) shouldEqual bvar(IntData(2))
 
     // shift 1 at cutoff 1: 0 stays (because 0 < 1), 1 -> 2
-    shift(1, 1, bvar(0)) shouldEqual bvar(0)
-    shift(1, 1, bvar(1)) shouldEqual bvar(2)
+    shift(1, 1, bvar(IntData(0))) shouldEqual bvar(IntData(0))
+    shift(1, 1, bvar(IntData(1))) shouldEqual bvar(IntData(2))
 
     // shift 0 is identity
-    shift(0, 0, bvar(42)) shouldEqual bvar(42)
+    shift(0, 0, bvar(IntData(42))) shouldEqual bvar(IntData(42))
   }
 
   /*
@@ -471,15 +475,24 @@ class DlamDeBruijnTests extends AnyFlatSpec {
   "DBI.shift structure laws" should "distribute over fun and respect binders" in {
     import DlamTy.*, DBI.*
 
-    val ty = fun(bvar(0), fun(bvar(1), bvar(0))) // (0 -> (1 -> 0))
-    shift(1, 0, ty) shouldEqual fun(bvar(1), fun(bvar(2), bvar(1)))
+    val ty =
+      fun(
+        bvar(IntData(0)),
+        fun(bvar(IntData(1)), bvar(IntData(0)))
+      ) // (0 -> (1 -> 0))
+    shift(1, 0, ty) shouldEqual fun(
+      bvar(IntData(1)),
+      fun(bvar(IntData(2)), bvar(IntData(1)))
+    )
 
     // Under ∀, cutoff increases by 1 inside the body
-    val poly = forall(fun(bvar(0), bvar(1))) // ∀. (0 -> 1)
+    val poly = forall(fun(bvar(IntData(0)), bvar(IntData(1)))) // ∀. (0 -> 1)
     // shift by 1 with cutoff 0:
     // - outside just wraps
-    // - inside uses cutoff 1, so bvar(0) (<1) stays, bvar(1) (>=1) -> bvar(2)
-    shift(1, 0, poly) shouldEqual forall(fun(bvar(0), bvar(2)))
+    // - inside uses cutoff 1, so bvar(IntData(0)) (<1) stays, bvar(IntData(1)) (>=1) -> bvar(IntData(2))
+    shift(1, 0, poly) shouldEqual forall(
+      fun(bvar(IntData(0)), bvar(IntData(2)))
+    )
   }
 
   /*
@@ -497,7 +510,9 @@ class DlamDeBruijnTests extends AnyFlatSpec {
    */
   "DBI.shift round-trip" should "be reversible when shifts are valid" in {
     import DlamTy.*, DBI.*
-    val t = forall(fun(bvar(0), fun(bvar(1), bvar(0)))) // ∀. (0 -> (1 -> 0))
+    val t = forall(
+      fun(bvar(IntData(0)), fun(bvar(IntData(1)), bvar(IntData(0))))
+    ) // ∀. (0 -> (1 -> 0))
     val up = shift(1, 0, t)
     val down = shift(-1, 0, up)
     down shouldEqual t
@@ -516,9 +531,9 @@ class DlamDeBruijnTests extends AnyFlatSpec {
 
   Example
   -------
-  t = ∀. fun(bvar(2), bvar(1))
-  subst(1, bvar(0), t)
-  = ∀. fun(bvar(1), bvar(1))
+  t = ∀. fun(bvar(IntData(2)), bvar(IntData(1)))
+  subst(1, bvar(IntData(0)), t)
+  = ∀. fun(bvar(IntData(1)), bvar(IntData(1)))
 
   What we assert
   --------------
@@ -526,12 +541,14 @@ class DlamDeBruijnTests extends AnyFlatSpec {
    */
   "DBI.subst under a binder" should "use shift(1,0,s) and avoid capture" in {
     import DlamTy.*, DBI.*
-    // t = ∀. fun(bvar(2), bvar(1))   -- body sees one binder already
-    val t = forall(fun(bvar(2), bvar(1)))
-    // Substitute at c=1 with s = bvar(0)  (a free var in the outer scope)
-    // Expected: ∀. fun(bvar(1), bvar(1))
-    // Explanation: under the binder we do subst(2, shift(1,0,bvar(0))=bvar(1), body)
-    subst(1, bvar(0), t) shouldEqual forall(fun(bvar(1), bvar(1)))
+    // t = ∀. fun(bvar(IntData(2)), bvar(IntData(1)))   -- body sees one binder already
+    val t = forall(fun(bvar(IntData(2)), bvar(IntData(1))))
+    // Substitute at c=1 with s = bvar(IntData(0))  (a free var in the outer scope)
+    // Expected: ∀. fun(bvar(IntData(1)), bvar(IntData(1)))
+    // Explanation: under the binder we do subst(2, shift(1,0,bvar(IntData(0)))=bvar(IntData(1)), body)
+    subst(1, bvar(IntData(0)), t) shouldEqual forall(
+      fun(bvar(IntData(1)), bvar(IntData(1)))
+    )
   }
 
   /*
@@ -540,7 +557,7 @@ class DlamDeBruijnTests extends AnyFlatSpec {
 
   Idea
   ----
-  instantiate(∀. fun(bvar(0), bvar(0)), τ)  =  fun(τ, τ)
+  instantiate(∀. fun(bvar(IntData(0)), bvar(IntData(0))), τ)  =  fun(τ, τ)
 
   What we assert
   --------------
@@ -548,7 +565,7 @@ class DlamDeBruijnTests extends AnyFlatSpec {
    */
   "DBI.instantiate" should "instantiate ∀α. α→α to τ→τ for ground τ" in {
     import DlamTy.*, DBI.*
-    val poly = forall(fun(bvar(0), bvar(0)))
+    val poly = forall(fun(bvar(IntData(0)), bvar(IntData(0))))
     instantiate(poly, I32) shouldEqual fun(I32, I32)
   }
 
@@ -558,8 +575,8 @@ class DlamDeBruijnTests extends AnyFlatSpec {
 
   Idea
   ----
-  VLambda(fun(bvar(0), bvar(0)), body) requires the body block arg to have type bvar(0).
-  We intentionally use bvar(1) to ensure verify() fails.
+  VLambda(fun(bvar(IntData(0)), bvar(IntData(0))), body) requires the body block arg to have type bvar(IntData(0)).
+  We intentionally use bvar(IntData(1)) to ensure verify() fails.
 
   What we assert
   --------------
@@ -567,16 +584,16 @@ class DlamDeBruijnTests extends AnyFlatSpec {
    */
   "A VLambda with wrong block arg type" should "fail verify" in {
     import DlamTy.*
-    val funTy = fun(bvar(0), bvar(0))
+    val funTy = fun(bvar(IntData(0)), bvar(IntData(0)))
     val res = Result[TypeAttribute](funTy)
     val wrongRegion =
       Region(
         Seq(
           Block(
-            bvar(1),
-            (x: Value[Attribute]) => { // should be bvar(0)
+            bvar(IntData(1)),
+            (x: Value[Attribute]) => { // should be bvar(IntData(0))
               val xd = x.asInstanceOf[Value[TypeAttribute]]
-              Seq(VReturn(xd, expected = bvar(1)))
+              Seq(VReturn(xd, expected = bvar(IntData(1))))
             }
           )
         )
@@ -599,9 +616,10 @@ class DlamDeBruijnTests extends AnyFlatSpec {
    */
   "A TApply on a non-forall" should "fail verify" in {
     import DlamTy.*
-    val notForall = Result[TypeAttribute](fun(bvar(0), bvar(0)))
-    val res = Result[TypeAttribute](fun(bvar(0), bvar(0)))
-    val bad = TApply(notForall, bvar(0), res)
+    val notForall =
+      Result[TypeAttribute](fun(bvar(IntData(0)), bvar(IntData(0))))
+    val res = Result[TypeAttribute](fun(bvar(IntData(0)), bvar(IntData(0))))
+    val bad = TApply(notForall, bvar(IntData(0)), res)
     bad.verify().isRight shouldBe false
   }
 
@@ -611,7 +629,7 @@ class DlamDeBruijnTests extends AnyFlatSpec {
 
   Idea
   ----
-  Use a function type α→α, but pretend result type is bvar(1) (wrong).
+  Use a function type α→α, but pretend result type is bvar(IntData(1)) (wrong).
 
   What we assert
   --------------
@@ -619,9 +637,9 @@ class DlamDeBruijnTests extends AnyFlatSpec {
    */
   "A VApply with mismatched argument/result types" should "fail verify" in {
     import DlamTy.*
-    val fTy = fun(bvar(0), bvar(0))
-    val argT = bvar(0)
-    val resT = bvar(0)
+    val fTy = fun(bvar(IntData(0)), bvar(IntData(0)))
+    val argT = bvar(IntData(0))
+    val resT = bvar(IntData(0))
     val fRes = Result[TypeAttribute](fTy)
     val vlam =
       VLambda(
@@ -639,9 +657,9 @@ class DlamDeBruijnTests extends AnyFlatSpec {
         ),
         fRes
       )
-    // pretend we have an argument of wrong type bvar(1)
+    // pretend we have an argument of wrong type bvar(IntData(1))
     val argVal = fRes
-    val bad = VApply(fRes, argVal, Result[TypeAttribute](bvar(1)))
+    val bad = VApply(fRes, argVal, Result[TypeAttribute](bvar(IntData(1))))
     bad.verify().isRight shouldBe false
   }
 
@@ -651,8 +669,8 @@ class DlamDeBruijnTests extends AnyFlatSpec {
 
   Example
   -------
-  subst(0, τ, fun(bvar(1), bvar(0)))  =  fun(bvar(0), τ)
-  (1 drops to 0; the replaced bvar(0) becomes τ.)
+  subst(0, τ, fun(bvar(IntData(1)), bvar(IntData(0))))  =  fun(bvar(IntData(0)), τ)
+  (1 drops to 0; the replaced bvar(IntData(0)) becomes τ.)
 
   What we assert
   --------------
@@ -660,10 +678,10 @@ class DlamDeBruijnTests extends AnyFlatSpec {
    */
   "DBI.subst (k > c) branch" should "decrement indices above the hole" in {
     import DlamTy.*, DBI.*
-    // Replace bvar(0) with τ in (1 -> 0) : the 1 shifts down to 0
-    val t = fun(bvar(1), bvar(0))
+    // Replace bvar(IntData(0)) with τ in (1 -> 0) : the 1 shifts down to 0
+    val t = fun(bvar(IntData(1)), bvar(IntData(0)))
     val tau = I32
-    subst(0, tau, t) shouldEqual fun(bvar(0), tau)
+    subst(0, tau, t) shouldEqual fun(bvar(IntData(0)), tau)
   }
 
   /*
@@ -682,7 +700,8 @@ class DlamDeBruijnTests extends AnyFlatSpec {
    */
   "DBI.shift across two nested binders" should "leave indices < 2 unchanged" in {
     import DlamTy.*, DBI.*
-    val t = forall(forall(fun(bvar(1), bvar(0)))) // ∀. ∀. (1 -> 0)
+    val t =
+      forall(forall(fun(bvar(IntData(1)), bvar(IntData(0))))) // ∀. ∀. (1 -> 0)
     shift(1, 0, t) shouldEqual t // cutoff becomes 2 inside
   }
 
@@ -703,13 +722,17 @@ class DlamDeBruijnTests extends AnyFlatSpec {
   "DBI.shift across two nested binders (index beyond both)" should
     "bump indices >= 2 inside the inner body" in {
       import DlamTy.*, DBI.*
-      val t = forall(forall(fun(bvar(2), bvar(1)))) // ∀. ∀. (2 -> 1)
+      val t = forall(
+        forall(fun(bvar(IntData(2)), bvar(IntData(1))))
+      ) // ∀. ∀. (2 -> 1)
       val s = shift(1, 0, t) // cutoff 2 inside
-      s shouldEqual forall(forall(fun(bvar(3), bvar(1)))) // 2→3, 1 unchanged
+      s shouldEqual forall(
+        forall(fun(bvar(IntData(3)), bvar(IntData(1))))
+      ) // 2→3, 1 unchanged
     }
 
   /*
-  Test: TApply under outer binder — instantiate ∀β using α (outer bvar(0))
+  Test: TApply under outer binder — instantiate ∀β using α (outer bvar(IntData(0)))
   ========================================================================
 
   Surface idea
@@ -718,30 +741,30 @@ class DlamDeBruijnTests extends AnyFlatSpec {
 
   De Bruijn view
   --------------
-  - Inside the inner TLambda, α is bvar(1), β is bvar(0).
-  - TApply uses argType = outer bvar(0) (α).
+  - Inside the inner TLambda, α is bvar(IntData(1)), β is bvar(IntData(0)).
+  - TApply uses argType = outer bvar(IntData(0)) (α).
 
   What we assert
   --------------
-  - The TApply result type is fun(bvar(0), bvar(0)).
+  - The TApply result type is fun(bvar(IntData(0)), bvar(IntData(0))).
   - The outer TLambda result is ∀α. α→α.
    */
-  "TApply under an outer binder" should "instantiate ∀β. (α -> α) to (α -> α) where α is outer bvar(0)" in {
+  "TApply under an outer binder" should "instantiate ∀β. (α -> α) to (α -> α) where α is outer bvar(IntData(0))" in {
     // Types inside inner tlambda (β is inner, α is outer):
-    // bodyInner = fun(bvar(1), bvar(1))   // both refer to the *outer* binder
-    val bodyInner: DlamType = fun(bvar(1), bvar(1))
+    // bodyInner = fun(bvar(IntData(1)), bvar(IntData(1)))   // both refer to the *outer* binder
+    val bodyInner: DlamType = fun(bvar(IntData(1)), bvar(IntData(1)))
     val forallInner: DlamType = forall(bodyInner) // ∀β. (α -> α)
 
-    // Build inner vlambda: λ(x: α). x  (α = bvar(1) under the inner binder)
+    // Build inner vlambda: λ(x: α). x  (α = bvar(IntData(1)) under the inner binder)
     val innerVRes = Result[TypeAttribute](bodyInner)
     val innerVRegion =
       Region(
         Seq(
           Block(
-            bvar(1), // arg : α (outer binder)
+            bvar(IntData(1)), // arg : α (outer binder)
             (xVal: Value[Attribute]) => {
               val x = xVal.asInstanceOf[Value[TypeAttribute]]
-              Seq(VReturn(x, expected = bvar(1))) // return x : α
+              Seq(VReturn(x, expected = bvar(IntData(1)))) // return x : α
             }
           )
         )
@@ -764,12 +787,15 @@ class DlamDeBruijnTests extends AnyFlatSpec {
     val innerTLambda = TLambda(tBody = innerTRegion, res = innerTRes)
     innerTLambda.verify().isRight shouldBe true
 
-    // Now the OUTER tlambda over α, which applies the inner poly fn at α = bvar(0)
+    // Now the OUTER tlambda over α, which applies the inner poly fn at α = bvar(IntData(0))
     val tapplyResultTy =
-      fun(bvar(0), bvar(0)) // expect (α -> α) after instantiation
+      fun(
+        bvar(IntData(0)),
+        bvar(IntData(0))
+      ) // expect (α -> α) after instantiation
     val hRes = Result[TypeAttribute](tapplyResultTy)
     val tapply =
-      TApply(polymorphicFun = innerTRes, argType = bvar(0), res = hRes)
+      TApply(polymorphicFun = innerTRes, argType = bvar(IntData(0)), res = hRes)
     tapply.verify().isRight shouldBe true
 
     val outerTRet = TReturn(value = hRes, expected = tapplyResultTy)
@@ -786,8 +812,10 @@ class DlamDeBruijnTests extends AnyFlatSpec {
     outerTLambda.verify().isRight shouldBe true
 
     // Optional: quick sanity assertions
-    hRes.typ shouldEqual fun(bvar(0), bvar(0))
-    outerTLambda.res.typ shouldEqual forall(fun(bvar(0), bvar(0)))
+    hRes.typ shouldEqual fun(bvar(IntData(0)), bvar(IntData(0)))
+    outerTLambda.res.typ shouldEqual forall(
+      fun(bvar(IntData(0)), bvar(IntData(0)))
+    )
   }
 
   /*
@@ -814,7 +842,7 @@ class DlamDeBruijnTests extends AnyFlatSpec {
   IR intuition
   ------------
   - The pass finds TApply(%G, α), looks up the defining TLambda %G, clones the
-    returned VLambda, substituting β := α (de Bruijn bvar(0) under outer TLambda).
+    returned VLambda, substituting β := α (de Bruijn bvar(IntData(0)) under outer TLambda).
   - It inserts the specialized VLambda before the TReturn and replaces the TApply’s
     result with that VLambda’s result.
   - It then DCEs the now-unused inner TLambda (best effort).
@@ -828,29 +856,34 @@ class DlamDeBruijnTests extends AnyFlatSpec {
    */
   "Monomorphize pass" should "replace tapply with a specialized vlam and remove the use" in {
     // Types under current binder: α → α and ∀β. β → β (but we’ll use α for instantiation)
-    val alphaFun: DlamType = fun(bvar(0), bvar(0)) // α -> α
+    val alphaFun: DlamType = fun(bvar(IntData(0)), bvar(IntData(0))) // α -> α
     val forallAlphaFun: DlamType = forall(alphaFun) // ∀α. α -> α
 
-    // Inner: G = Λβ. λ(x: β). x  (written with bvar(0) under its own binder)
-    val innerVRes = Result[TypeAttribute](fun(bvar(0), bvar(0)))
+    // Inner: G = Λβ. λ(x: β). x  (written with bvar(IntData(0)) under its own binder)
+    val innerVRes =
+      Result[TypeAttribute](fun(bvar(IntData(0)), bvar(IntData(0))))
     val innerVRegion = Region(
       Seq(
         Block(
-          bvar(0),
+          bvar(IntData(0)),
           (x: Value[Attribute]) => {
             val xd = x.asInstanceOf[Value[TypeAttribute]]
-            Seq(VReturn(xd, expected = bvar(0)))
+            Seq(VReturn(xd, expected = bvar(IntData(0))))
           }
         )
       )
     )
     val innerVLam = VLambda(
-      funAttr = fun(bvar(0), bvar(0)),
+      funAttr = fun(bvar(IntData(0)), bvar(IntData(0))),
       body = innerVRegion,
       res = innerVRes
     )
-    val innerTRet = TReturn(value = innerVRes, expected = fun(bvar(0), bvar(0)))
-    val innerTLRes = Result[TypeAttribute](forall(fun(bvar(0), bvar(0))))
+    val innerTRet = TReturn(
+      value = innerVRes,
+      expected = fun(bvar(IntData(0)), bvar(IntData(0)))
+    )
+    val innerTLRes =
+      Result[TypeAttribute](forall(fun(bvar(IntData(0)), bvar(IntData(0)))))
     val innerTLRegion = Region(
       Seq(
         Block(operations = Seq(innerVLam, innerTRet))
@@ -862,7 +895,11 @@ class DlamDeBruijnTests extends AnyFlatSpec {
     // Outer: F = Λα. (h := tapply G <!α>; treturn h : α→α)
     val hRes = Result[TypeAttribute](alphaFun)
     val tapply =
-      TApply(polymorphicFun = innerTLRes, argType = bvar(0), res = hRes)
+      TApply(
+        polymorphicFun = innerTLRes,
+        argType = bvar(IntData(0)),
+        res = hRes
+      )
     tapply.verify().isRight shouldBe true
     val outerTRet = TReturn(value = hRes, expected = alphaFun)
     val outerTLRes = Result[TypeAttribute](forallAlphaFun)
@@ -1062,7 +1099,7 @@ class DlamDeBruijnTests extends AnyFlatSpec {
     import DlamTy.*
 
     val len = n(4) // !dlam.nat_lit<4>
-    val elemTy: TypeAttribute = bvar(0) // !dlam.bvar<0>
+    val elemTy: TypeAttribute = bvar(IntData(0)) // !dlam.bvar<0>
     val vecTy: DlamType = vec(len, elemTy)
 
     vecTy.custom_print should include("!dlam.vec")
@@ -1074,20 +1111,20 @@ class DlamDeBruijnTests extends AnyFlatSpec {
     import DlamTy.*, DBI.*
 
     val len = n(2) // !dlam.nat_lit<2>
-    val elem = bvar(0)
+    val elem = bvar(IntData(0))
     val t: TypeAttribute =
       DlamVecType(len, elem) // !dlam.vec<!dlam.nat_lit<2>, !dlam.bvar<0>>
 
-    // shift indices >=0 by +1 → bvar(0) becomes bvar(1)
+    // shift indices >=0 by +1 → bvar(IntData(0)) becomes bvar(IntData(1))
     val shifted = shift(1, 0, t)
-    shifted shouldEqual DlamVecType(len, bvar(1))
+    shifted shouldEqual DlamVecType(len, bvar(IntData(1)))
   }
 
   "DBI.subst on vec" should "substitute inside element type" in {
     import DlamTy.*, DBI.*
 
     val len = n(3)
-    val elem = bvar(0)
+    val elem = bvar(IntData(0))
     val t: TypeAttribute = DlamVecType(len, elem)
 
     val tau: TypeAttribute = I32 // some ground type
@@ -1100,7 +1137,7 @@ class DlamDeBruijnTests extends AnyFlatSpec {
       import DlamTy.*, DBI.*
 
       val body: TypeAttribute =
-        DlamVecType(n(3), bvar(0)) // vec<3, α>
+        DlamVecType(n(3), bvar(IntData(0))) // vec<3, α>
       val poly: TypeAttribute =
         DlamForAllType(body) // ∀. vec<3, α>
       val i32Ty: TypeAttribute = I32

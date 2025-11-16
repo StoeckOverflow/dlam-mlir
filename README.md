@@ -26,3 +26,13 @@ This project uses the build tool [Mill](https://mill-build.org/mill/index.html).
 ```bash
 ./mill dlam_de_bruijn.test
 ```
+
+### Run filecheck tests:
+
+After compiling run:
+
+```bash
+out/dlam_de_bruijn/launcher.dest/run dlam_de_bruijn/test/filecheck/<test>
+```
+
+In case something does not work, rebuilding the launcher with `./mill dlam_de_bruijn.launcher` helps.
