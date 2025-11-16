@@ -2,97 +2,207 @@
 
 ## **1. Overview**
 
-The **`dlam` dialect** models a dependently-typed λ-calculus with explicit polymorphism using **de Bruijn indices** for binders.
-Types are represented as **attributes** (`!…`), while programs are expressed as **operations** (`"…"`) in MLIR SSA form.
+The **`dlam` dialect** implements a small dependently typed λ-calculus with:
 
-All types belong to the kind `!dlam.type`, and all binders (both type- and value-level) are encoded via MLIR **regions** that introduce de Bruijn depth.
+* Higher-order types (`!dlam.fun`)
+* Explicit polymorphism (`!dlam.forall`)
+* **De Bruijn indices** for type variables (`!dlam.bvar<k>`)
+* A small natural-number expression sublanguage for indexed types
+
+All types are encoded as **attributes**, and programs are encoded as **MLIR operations** with regions for binders.
+
+The dialect is registered with:
+
+```scala
+val DlamDialect = summonDialect[
+  (DlamTypeType, DlamBVarType, DlamForAllType), // attributes
+  (VLambda, VReturn, TLambda, TReturn, TApply, VApply) // operations
+](Seq(DlamFunType))
+```
 
 ---
 
-## **2. Type Attributes**
+# **2. Type Attributes**
 
 ```
-DlamType ::= DlamTypeType
-           | DlamBVarType
-           | DlamFunType
-           | DlamForAllType
+DlamType ::=
+    !dlam.type
+  | !dlam.bvar<k>
+  | !dlam.fun<in, out>
+  | !dlam.forall<body>
+  | !dlam.vec<len, elem>
 ```
 
-### 2.1 Universe
-
-```
-!dlam.type
-```
-
-The universe of all Dlam types.
+All type attributes extend `DlamType`.
 
 ---
 
-### 2.2 De Bruijn Type Variable
+## **2.1 Universe**
 
-```
-!dlam.bvar<k>
-```
+### **`!dlam.type`**
 
-A de Bruijn index referencing the binder `k` steps outward from the current type context.
-`k` ∈ ℕ.
+Represents the universe of all Dlam types — analogous to `Type : Type` in type theory but treated as an attribute.
 
 ---
 
-### 2.3 Function Type
+## **2.2 De Bruijn Type Variable**
 
-```
-!dlam.fun<in, out>
-```
+### **`!dlam.bvar<k>`**
 
-A value-level function type from `in` to `out`.
-Both `in` and `out` are `DlamType`.
+A de Bruijn index referencing a type binder:
+
+* `k = 0` refers to the innermost enclosing `TLambda`
+* `k = 1` refers to the next-outer binder, etc.
+
+```mlir
+!dlam.bvar<0>
+```
 
 ---
 
-### 2.4 Polymorphic Type (∀-abstraction)
+## **2.3 Function Type**
+
+### **`!dlam.fun<in, out>`**
+
+A value-level function type.
+
+```mlir
+!dlam.fun<!dlam.type, !dlam.type>
+```
+
+Parser accepts:
 
 ```
-!dlam.forall<body>
+<in, out>
 ```
 
-A polymorphic type representing `∀α. body`, where occurrences of `!dlam.bvar<0>` in `body` refer to the bound type variable.
+via:
+
+```scala
+P("<" ~ p.Type ~ "," ~ p.Type ~ ">")
+```
 
 ---
 
-## **3. Natural Number Index Language**
+## **2.4 Polymorphic Type**
 
-Dlam supports a small family of **natural-number attributes** for dependent shapes or size indices.
+### **`!dlam.forall<body>`**
 
-```
-NatExpr ::= !dlam.nat_lit<IntData>
-          | !dlam.nat.add<NatExpr, NatExpr>
-          | !dlam.nat.mul<NatExpr, NatExpr>
-```
-
-* `!dlam.nat_lit<n>` A literal natural number (requires n ≥ 0).
-* `!dlam.nat.add<a,b>` Addition.
-* `!dlam.nat.mul<a,b>` Multiplication.
-
-Example:
+Represents polymorphism:
 
 ```
-!dlam.nat.mul<!dlam.nat.add<!dlam.nat_lit<2>, !dlam.nat_lit<3>>, !dlam.nat_lit<2>>
+∀. body
 ```
 
-These expressions can appear as parameters inside other attributes (e.g., vector sizes).
+The body may contain `!dlam.bvar<0>` referring to the newly introduced type variable.
 
 ---
 
-## **4. Operations**
+## **2.5 Vector Type (Indexed)**
 
-All Dlam operations follow MLIR syntax:
+### **`!dlam.vec<len, elem>`**
+
+A dependent vector type of length `len` and element type `elem`.
+
+Examples:
 
 ```
-"op-name" (operands) [attributes] [regions] : (input-types) -> (result-types)
+!dlam.vec<!dlam.nat_lit<3>, i32>
 ```
 
-### 4.1 `dlam.vlambda` — Value-level λ-abstraction
+---
+
+# **3. Natural Number Expression Attributes**
+
+```
+NatExpr ::=
+    !dlam.nat_lit<n>
+  | !dlam.nat.add<a, b>
+  | !dlam.nat.mul<a, b>
+```
+
+Used for dependent indexing (vector lengths, dimensions, etc.).
+
+### **3.1 Literal**
+
+```
+!dlam.nat_lit<n>
+```
+
+Verifier enforces `n ≥ 0`.
+
+### **3.2 Addition**
+
+```
+!dlam.nat.add<a, b>
+```
+
+### **3.3 Multiplication**
+
+```
+!dlam.nat.mul<a, b>
+```
+
+All `NatExpr` are also valid `TypeAttribute`s, so they can appear inside other type constructors.
+
+---
+
+# **4. De Bruijn Index Utilities**
+
+The dialect defines standard operations for managing de Bruijn indices.
+
+## **4.1 `shift(d, c, t)`**
+
+Increase all indices ≥ `c` by `d`.
+
+Used when entering/exiting binders.
+
+## **4.2 `subst(c, s, t)`**
+
+Substitute:
+
+```
+bvar(c) := s
+```
+
+with index-adjustment for variables above `c`.
+
+## **4.3 `instantiate(fa, arg)`**
+
+Instantiates:
+
+```
+∀. body
+```
+
+with a concrete type:
+
+```
+instantiate(∀.body, arg) = subst(0, arg, body)
+```
+
+Correctly shifts `arg` as required.
+
+---
+
+# **5. Operations**
+
+Only **six** operations exist:
+
+```
+dlam.vlambda
+dlam.vreturn
+dlam.tlambda
+dlam.treturn
+dlam.tapply
+dlam.vapply
+```
+
+There is **no** `vconst`.
+
+---
+
+## **5.1 `dlam.vlambda` — Value-level λ**
 
 ```
 %f = "dlam.vlambda"()
@@ -103,94 +213,103 @@ All Dlam operations follow MLIR syntax:
       }) : () -> (!dlam.fun<A, B>)
 ```
 
-**Verifier:**
+### Verifier:
 
-* One region with exactly one block.
-* One argument whose type = `funAttr.in`.
-* `res.typ == funAttr`.
+* One region, one block.
+* Block must have **exactly one argument**.
+* Argument type must equal `funAttr.in`.
+* The operation result type must equal `funAttr`.
 
 ---
 
-### 4.2 `dlam.vreturn` — Value-level return
+## **5.2 `dlam.vreturn` — Return from a value region**
 
 ```
 "dlam.vreturn"(%x) <{expected = T}> : (T) -> ()
 ```
 
-Terminates a value region.
+Terminator for regions of `VLambda`.
 
-**Verifier:** `value.typ == expected`.
+### Verifier:
+
+```
+value.typ == expected
+```
 
 ---
 
-### 4.3 `dlam.tlambda` — Type-level λ (∀-introduction)
+## **5.3 `dlam.tlambda` — Type-level λ (∀-intro)**
 
 ```
 %F = "dlam.tlambda"() ({
   ^bb0():
-    ... "dlam.treturn"(%v) ...
-}) : () -> (!dlam.forall<T>)
+    ... type-producing operations ...
+}) : () -> (!dlam.forall<body>)
 ```
 
-**Verifier:**
+### Verifier:
 
-* One block with **zero** arguments.
-* `res.typ` is `!dlam.forall<…>`.
+* One block **with zero arguments**.
+* Result type is `!dlam.forall<_>`.
 
 ---
 
-### 4.4 `dlam.treturn` — Type-level return
+## **5.4 `dlam.treturn` — Type-level return**
 
 ```
 "dlam.treturn"(%v) <{expected = T}> : (T) -> ()
 ```
 
-**Verifier:** `value.typ == expected`.
+Terminator for `TLambda` bodies.
+
+### Verifier:
+
+```
+value.typ == expected
+```
 
 ---
 
-### 4.5 `dlam.tapply` — Type-level application (∀-elimination)
+## **5.5 `dlam.tapply` — Type-level application (∀-elim)**
 
 ```
-%h = "dlam.tapply"(%G) <{argType = !dlam.const<i32>}>
-      : (!dlam.forall<!dlam.fun<!dlam.bvar<0>, !dlam.bvar<0>>>)
-        -> (!dlam.fun<!dlam.const<i32>, !dlam.const<i32>>)
+%h = "dlam.tapply"(%G) <{argType = T}>
+      : (!dlam.forall<body>) -> (instantiate(body, T))
 ```
 
-**Verifier:**
-If `polymorphicFun.typ == !dlam.forall<body>`,
-then `res.typ == instantiate(body, argType)` (via de Bruijn substitution).
+Where:
+
+```
+instantiate(body, T) = DBI.subst(0, T, body)
+```
+
+### Verifier:
+
+* `polymorphicFun.typ` must be `DlamForAllType`.
+* Result type must equal computed instantiation.
 
 ---
 
-### 4.6 `dlam.vapply` — Value-level application
+## **5.6 `dlam.vapply` — Value-level application**
 
 ```
 %r = "dlam.vapply"(%f, %x)
+      : (!dlam.fun<A, B>) -> B
 ```
 
-**Verifier:**
-If `fun.typ == !dlam.fun<A, B>` then `arg.typ == A` and `res.typ == B`.
+### Verifier:
+
+```
+f.typ == !dlam.fun<A, B>
+x.typ == A
+res.typ == B
+```
 
 ---
 
-### 4.7 `dlam.vconst` — Value constant
+# **6. Examples**
 
-```
-%c = "dlam.vconst"(#builtin.int_attr<42 : i64>)
-      : (!dlam.const<i32>)
-```
-
-Produces a constant value.
-**Verifier:**
-`res.typ == !dlam.const<T>` and the literal’s kind matches `T`
-(e.g., `IntData` ↔ `i32`, `FloatData` ↔ `f32`).
-
----
-
-## **5. Example Programs**
-
-### 5.1 Polymorphic Identity (∀α. α → α)
+## **6.1 Polymorphic Identity**
 
 ```
 %F = "dlam.tlambda"() ({
@@ -206,74 +325,19 @@ Produces a constant value.
 
 ---
 
-### 5.2 Type Application (Before Monomorphization)
+## **6.2 Type Application**
 
 ```
-%F = "dlam.tlambda"() ({
-^bb0():
-  %G = "dlam.tlambda"() ({
-  ^bb1():
-    %v = "dlam.vlambda"() <{funAttr = !dlam.fun<!dlam.bvar<0>, !dlam.bvar<0>>}> ({
-    ^bb2(%x: !dlam.bvar<0>):
-      "dlam.vreturn"(%x) <{expected = !dlam.bvar<0>}> : (!dlam.bvar<0>) -> ()
-    }) : () -> (!dlam.fun<!dlam.bvar<0>, !dlam.bvar<0>>)
-    "dlam.treturn"(%v) <{expected = !dlam.fun<!dlam.bvar<0>, !dlam.bvar<0>>}>
-      : (!dlam.fun<!dlam.bvar<0>, !dlam.bvar<0>>) -> ()
-  }) : () -> (!dlam.forall<!dlam.fun<!dlam.bvar<0>, !dlam.bvar<0>>>)
-  %h = "dlam.tapply"(%G) <{argType = !dlam.bvar<0>}>
-        : (!dlam.forall<!dlam.fun<!dlam.bvar<0>, !dlam.bvar<0>>>)
-          -> (!dlam.fun<!dlam.bvar<0>, !dlam.bvar<0>>)
-  "dlam.treturn"(%h) <{expected = !dlam.fun<!dlam.bvar<0>, !dlam.bvar<0>>}>
-    : (!dlam.fun<!dlam.bvar<0>, !dlam.bvar<0>>) -> ()
-}) : () -> (!dlam.forall<!dlam.fun<!dlam.bvar<0>, !dlam.bvar<0>>>)
+%h = "dlam.tapply"(%G) <{argType = !dlam.bvar<0>}>
+      : (!dlam.forall<!dlam.fun<!dlam.bvar<0>, !dlam.bvar<0>>>)
+        -> (!dlam.fun<!dlam.bvar<0>, !dlam.bvar<0>>)
 ```
 
 ---
 
-### 5.3 Monomorphized Form
+# **7. Semantics Summary**
 
-```
-%F = "dlam.tlambda"() ({
-^bb0():
-  %h = "dlam.vlambda"() <{funAttr = !dlam.fun<!dlam.bvar<0>, !dlam.bvar<0>>}> ({
-  ^bb1(%x: !dlam.bvar<0>):
-    "dlam.vreturn"(%x) <{expected = !dlam.bvar<0>}> : (!dlam.bvar<0>) -> ()
-  }) : () -> (!dlam.fun<!dlam.bvar<0>, !dlam.bvar<0>>)
-  "dlam.treturn"(%h) <{expected = !dlam.fun<!dlam.bvar<0>, !dlam.bvar<0>>}>
-    : (!dlam.fun<!dlam.bvar<0>, !dlam.bvar<0>>) -> ()
-}) : () -> (!dlam.forall<!dlam.fun<!dlam.bvar<0>, !dlam.bvar<0>>>)
-```
-
----
-
-### 5.4 Nat Expression Examples
-
-```
-!dlam.nat_lit<2>
-!dlam.nat.add<!dlam.nat_lit<2>, !dlam.nat_lit<3>>
-!dlam.nat.mul<!dlam.nat.add<!dlam.nat_lit<2>, !dlam.nat_lit<3>>, !dlam.nat_lit<2>>
-```
-
----
-
-### 5.5 Value Constants
-
-```
-%0 = "dlam.vconst"(#builtin.int_attr<42 : i64>)
-      : (!dlam.const<i32>)
-```
-
----
-
-## **6. Semantics and Invariants**
-
-* **Binders** — Each `TLambda` introduces a type variable bound by de Bruijn depth.
-  `!dlam.bvar<0>` refers to the innermost enclosing binder.
-
-* **DBI Operations** — `shift`, `subst`, and `instantiate` behave as standard for de Bruijn indices.
-  Verification ensures that `TApply.res.typ == instantiate(body, argType)`.
-
-* **Monomorphization Pass** — Finds `tapply(G, τ)`, substitutes `τ` through the body, inserts the specialized `vlambda`, replaces uses, and removes now-dead polymorphic abstractions.
-
-* **Const Types & Values** — `!dlam.const<T>` classifies literal runtime values of machine type `T`.
-  The `dlam.vconst` operation introduces such constants; no separate “return-const-type” op is required.
+* **Value-level λ** → Regions bind *term variables*.
+* **Type-level λ (∀)** → Regions bind *type variables* via de Bruijn indices.
+* **Type application** automatically performs **capture-avoiding substitution**.
+* Natural number expressions permit **lightweight dependent indexing**.
