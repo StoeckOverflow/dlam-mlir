@@ -1,5 +1,3 @@
-alright nice, thank you! What do you think now: Is here: # Integration of SSA Values as Types in ScaIR / MLIR-like IR
-
 ## 1. Motivation and Goal
 
 ### Current situation
