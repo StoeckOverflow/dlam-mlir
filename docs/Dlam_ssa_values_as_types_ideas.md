@@ -11,7 +11,7 @@
 Enable **dependent types** where types may reference SSA values:
 
 ```
-!dlam.vec<%n, !dlam.const<i32>>
+!dlam.vec<%n, i32>
 ```
 
 That is: type equality and semantics depend on *runtime values* within a given region.
@@ -40,7 +40,7 @@ To achieve this, ScaIR needs controlled dependence between values and type expre
 
 ```scala
 sealed trait TypeExpr           // non-interned
-final case class TEConst(pure: DlamType) extends TypeExpr
+final case class TEConst(pure: TypeAttribute) extends TypeExpr
 final case class TEValueRef(id: ValueId) extends TypeExpr
 final case class TEFun(in: TypeExpr, out: TypeExpr) extends TypeExpr
 final case class TEForall(body: TypeExpr) extends TypeExpr
@@ -112,8 +112,8 @@ When cloning, erasing, or replacing ops:
 Example printed forms:
 
 ```
-!dlam.dep<vec<%n, !dlam.const<i32>>>
-!dlam.dep<fun<%x, !dlam.const<f32>>>
+!dlam.dep<vec<%n, i32>>
+!dlam.dep<fun<%x, f32>>
 ```
 
 Custom printer:
@@ -187,7 +187,7 @@ Add `verifyDependentTypes(mod: ModuleOp)`:
 
 | Category     | Example Test                                               |
 | ------------ | ---------------------------------------------------------- |
-| Round-trip   | parse/print of `!dlam.dep<vec<%n, !dlam.const<i32>>>`      |
+| Round-trip   | parse/print of `!dlam.dep<vec<%n, i32>>`      |
 | Dominance    | reject outer reference to inner-region value               |
 | DCE          | ensure %b used in type isn’t deleted                       |
 | RAUW         | remap value refs after replacement                         |
@@ -216,8 +216,8 @@ Add `verifyDependentTypes(mod: ModuleOp)`:
 %b : index = "arith.addi"(%n, %m) : (index, index) -> index
 
 // A vector type depending on SSA %b
-%arg0 : !dlam.dep_type<!dlam.dep<vec<%b, !dlam.const<i32>>>> = ...
-%r = "my.op"(%arg0) : (!dlam.dep_type<!dlam.dep<vec<%b, !dlam.const<i32>>>>) -> ()
+%arg0 : !dlam.dep_type<!dlam.dep<vec<%b, i32>>> = ...
+%r = "my.op"(%arg0) : (!dlam.dep_type<!dlam.dep<vec<%b, i32>>>) -> ()
 ```
 
 In Scala IR construction:
@@ -245,16 +245,16 @@ val ty = DepTypeAttr(
         // If %n and %m are not equal, but %b1 and %b2 value are, how to equate that?
         %b1 = arith.addi %n, %m
         %b2 = arith.addi %n, %m
-        !dlam.dep<vec<%b1, !dlam.const<i32>>>
-        !dlam.dep<vec<%b2, !dlam.const<i32>>>
+        !dlam.dep<vec<%b1, i32>>
+        !dlam.dep<vec<%b2, i32>>
         ```
   - E-graph engine like egg of NatExprExpr language to evaluate (%n + %m) == (%m + %n)
     - Example for NatExpr Normalization:
       ```mlir
       %b1 = arith.addi %n, %m
       %b2 = arith.addi %m, %n
-      !dlam.dep<vec<%b1, !dlam.const<i32>>>
-      !dlam.dep<vec<%b2, !dlam.const<i32>>>
+      !dlam.dep<vec<%b1, i32>>
+      !dlam.dep<vec<%b2, i32>>
       ```
 
 ## 3 Alternative Architecture: Types as SSA Values (Approach B)
