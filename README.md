@@ -1,49 +1,5 @@
 # Dependent Lambda Calculus in ScaIR
 
-This project contains some notes and implementations refgarding implementing a small dependently type lambda calculus. 
-It implements two dialects, which are built on top of [ScaIR](https://github.com/edin-dal/scair):
-
-1. the Dlam_de_bruijn Dialect, which is the baseline approach using de Bruijn indices, built on top of ScaIR, using only the core MLIR internals. The code can be found in this repo and also in my seperate branch of my ScaIR fork [dlam_de_bruijn](https://github.com/StoeckOverflow/scair/tree/dlam_de_bruijn).
-    
-2. the Dlam_ssa_in_types Dialect, which integrates SSA values as types for enabling dependent types in core MLIR, here also prototyped in ScaIR. The dialect is implemented in my seperate branch of my ScaIR fork [dlam-ssa-types](https://github.com/StoeckOverflow/scair/tree/dlam-ssa-types).
-
-
-## Compile and test the local code
-
-This project uses the build tool [Mill](https://mill-build.org/mill/index.html).
-
-### Compile:
-
-```bash
-./mill dlam_de_bruijn.compile
-```
-
-### Run tests:
-
-```bash
-./mill dlam_de_bruijn.test
-```
-
-### Run filecheck tests:
-
-After compiling run:
-
-```bash
-out/dlam_de_bruijn/launcher.dest/run dlam_de_bruijn/test/filecheck/<test>
-```
-
-In case something does not work, rebuilding the launcher with `./mill dlam_de_bruijn.launcher` helps.
-
-
-
-
-
-
-
-
-
-# Dependent Lambda Calculus in ScaIR
-
 This repository contains notes and prototype implementations exploring dependent types in MLIR using [ScaIR](https://github.com/edin-dal/scair). It provides two independent dialect designs, each illustrating a different approach to representing dependent types inside MLIR:
 
 ## 1. `dlam_de_bruijn` — Baseline λ-Calculus with De Bruijn Indices
