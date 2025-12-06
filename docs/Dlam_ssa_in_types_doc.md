@@ -2,7 +2,7 @@
 
 ## 1. Purpose of the Dlam Dialect
 
-The `dlam` dialect extends ScaIR with dependent typing. 
+The `dlam` dialect extends ScaIR with dependent typing.
 The dialect is implemented in a seperate branch of my ScaIR fork [dlam-ssa-types](https://github.com/StoeckOverflow/scair/tree/dlam-ssa-types).
 
 It introduces:
@@ -34,187 +34,156 @@ This allows IR such as:
 ```
 
 Here the type of `%x` literally contains a reference to the SSA value `%len`.
+This model treats dependent-type expressions as genuine consumers of the SSA use–def graph.
 
-# 2. Dependent Types in Dlam
+## 2. Dependent Types in Dlam
 
-Dependent types are encoded using an embedded expression language.
+Dependent types are encoded using an embedded expression language. They are represented by the attribute:
 
-## 2.1 Dependent Type Expressions
+```
+DepType(expr: DepTypeExpr)
+```
+
+### 2.1 Dependent Type Expressions
 
 ```
 DepTypeExpr =
   TEConst(pure MLIR type)
-  TEFun(input, output)               // dependent function type
-  TEForall(body)                     // type-level abstraction
+  TEFun(input, output)
+  TEForall(body)
   TEVec(length: NatExprExpr, elem: DepTypeExpr)
-  TEValueRef(v: Value)               // refers directly to an SSA value
-  TENamedValueRef(name: String)      // placeholder during parsing
+  TEValueRef(v: Value)
 ```
 
-### Example:
+* `TEConst` embeds a normal ScaIR/MLIR TypeAttribute.
+* `TEValueRef` holds a real IR Value, enabling true SSA-dependent typing.
+
+#### Example:
 
 ```
 !dlam.dep<vec<%len, i32>>
 ```
 
-parses initially as:
+Internal Encoding:
 
 ```
-TEVec(NENamedValueRef("len"), TEConst(i32))
+TEVec(
+  len  = NEFromValue(%3),
+  elem = TEConst(i32)
+)
 ```
 
-and after resolution becomes:
+### 2.2 Natural Expressions Used in Types
 
-```
-TEVec(NEFromValue(%2), TEConst(i32))
-```
-
-## 2.2 Natural Expressions Used in Types
-
+Natural-number expressions used in types also form a small AST:
 ```
 NatExprExpr =
   NELit(int)
   NEAdd(a, b)
   NEMul(a, b)
-  NEFromValue(v: Value)             // refers directly to an SSA value
-  NENamedValueRef(name: String)     // placeholder during parsing
+  NEFromValue(v: Value)             // SSA value providing a natural number
 ```
 
-Example:
+#### Example:
 
 ```
-vec<%len + 4, i32>
+%size = "dlam.nat_source"() : () -> i32
+!dlam.dep<vec<%size + 4, i32>>
 ```
 
-becomes:
+Internal Encoding:
 
 ```
 NEAdd(
-  NEFromValue(%len),
+  NEFromValue(%size),
   NELit(4)
 )
 ```
 
-# 3. The Dependent-Type Resolver Pass
-
-File: *DepTypeResolve.scala*
-
-### 3.1 Purpose
-
-During parsing, dependent types may contain symbolic textual references:
-
-```
-TENamedValueRef("n")
-NENamedValueRef("A")
-```
-
-These must be replaced with actual SSA values.
-
-### 3.2 What the resolver does
-
-It:
-
-1. Scans the entire module for SSA values and block arguments.
-2. Matches values by textual name (`ssaName`).
-3. Rewrites every dependent type expression in-place:
-
-```
-TENamedValueRef("n") → TEValueRef(value)
-NENamedValueRef("n") → NEFromValue(value)
-```
-
-### 3.3 Why this pass exists
-
-ScaIR’s parser builds types before it knows which SSA values exist.
-The resolver is the step that “links” dependent types to the actual IR.
-
-### 3.4 Example
-
-Source:
-
-```
-!dlam.dep<vec<%len, i32>>
-```
-
-After resolution:
-
-```
-!dlam.dep<vec<%2, i32>>
-```
-
-where `%2` is the actual SSA value defined earlier in the IR.
-
-# 4. The Dependent-Type Verifier Pass
+## 3. The Dependent-Type Verifier Pass
 
 File: *DependentTypeVerifier.scala*
 
-### 4.1 Purpose
+### 3.1 Purpose
 
-The verifier ensures dependent types are *well-formed* and satisfy dominance:
+The verifier checks the semantic correctness of dependent types:
 
 #### It checks:
 
-1. All dependent types are fully resolved
-   (i.e., no `TENamedValueRef` or `NENamedValueRef` remain)
-
-2. All values referenced inside types dominate their use
+1. All values referenced inside types dominate their use
    If a type refers to `%n`, then `%n` must be defined *before* the operation that uses the type.
+   Example of an invalid IR:
+    ```
+    %f = "dlam.vlambda"() <{funAttr = !dlam.dep<vec<%n, i32>>}> ...
+    %n = "dlam.nat_source"() : () -> i32   // too late
+    ```
+    The verifier emtis an exception.
 
-3. Natural expressions are valid
-   No invalid constructs or unresolvable values.
+2. Structural correctness
+    * function types (`TEFun`)
+    * type-level abstractions (`TEForall`)
+    * vector types (`TEVec`)
+    * natural expressions (`NEAdd`, `NEMul`, `NEFromValue`)
+    * block argument and operation result types
 
-### 4.2 Dominance check example
+Dominance policy
+* Block arguments dominate their block and nested regions.
+* Operation results must appear before their use in the same block.
+* Values from outer blocks dominate inner regions (standard structured-control semantics).
 
-Invalid:
+## 4. Parsing Dependent Types
 
-```
-%f = dlam.vlambda (...)  // references %n inside its type
-%n = dlam.nat_source()   // defined later → error
-```
+The `DepTypeParser` integrates directly with ScaIR’s SSA-use parser.
+Whenever the parser encounters `%x` inside a dependent type or nat-expression, it immediately resolves it to the corresponding `Value`.
 
-The verifier emits an exception:
-
-```
-Dependent type use not dominated by its definition
-```
-
-Valid:
-
-```
-%n = dlam.nat_source()
-%f = dlam.vlambda (...)  // now safe
-```
-
-# 5. Printing Dependent Types
-
-Because dependent types now contain `Value` objects directly, the ScaIR printer automatically prints types using the same SSA naming logic as normal values.
-
-Example:
+For example:
 
 ```
-TEValueRef(v0)   →   %0
-NEFromValue(v1)  →   %1
+vec<%len, i32>
 ```
 
-So:
+parses to:
 
 ```
-TEVec(NEFromValue(%0), TEConst(i32))
+TEVec(
+  len  = NEFromValue(valueForLen),
+  elem = TEConst(i32)
+)
+```
+
+Thus dependent types are guaranteed to contain **real SSA references** after parsing.
+
+## 5. Printing Dependent Types
+
+The `DepTypePrinter` prints dependent-type expressions structurally.
+
+Key behavior:
+
+* `TEValueRef(v)` prints the SSA name of `v`.
+* `NEFromValue(v)` prints `%<id>`.
+* Pure types delegate to the regular ScaIR printer.
+
+Example internal expression:
+
+```
+TEVec(
+  len  = NEFromValue(%0),
+  elem = TEConst(i32)
+)
 ```
 
 prints as:
 
-```
+```mlir
 vec<%0, i32>
 ```
 
-No special logic is required.
+Since all value references are real SSA values, printing integrates seamlessly with ScaIR’s normal SSA naming.
 
-# 6. Summary of the Compilation Pipeline
+## 6. Summary of the Compilation Pipeline
 
-| Stage                | Purpose                                                 |
-| -------------------- | ------------------------------------------------------- |
-| 1. Parser            | Builds IR, but dependent types contain *symbolic names* |
-| 2. Resolver Pass     | Replaces symbolic references with `Value` objects       |
-| 3. Verifier Pass     | Ensures dominance and dependent-type well-formedness    |
-| 4. Printer           | Prints value-based dependent types normally             |
+| Stage        | Description                                                                                  |
+| ------------ | -------------------------------------------------------------------------------------------- |
+| **Parser**   | Builds IR; dependent types already contain `Value` references (`TEValueRef`, `NEFromValue`). |
+| **Verifier** | Ensures dependent types are well-formed and dominance-correct.                               |
+| **Printer**  | Prints dependent types using normal SSA name assignment.                                     |
