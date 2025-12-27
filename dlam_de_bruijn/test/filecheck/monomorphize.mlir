@@ -1,4 +1,4 @@
-// RUN: scair-opt -p=monomorphize %s | filecheck %s --dump-input=fail --dump-input-filter all
+// RUN: scair-opt -p=monomorphize %s | filecheck %s
 
 builtin.module {
   %0 = "dlam.tlambda"() ({
@@ -14,13 +14,13 @@ builtin.module {
   }) : () -> (!dlam.forall<!dlam.fun<!dlam.bvar<0>, !dlam.bvar<0>>>)
 }
 
-// CHECK-NOT: "dlam.tapply"
 // CHECK: builtin.module { 
 // CHECK:   %0 = "dlam.tlambda"() ({ 
 // CHECK:     %1 = "dlam.vlambda"() <{funAttr = !dlam.fun<!dlam.bvar<0>, !dlam.bvar<0>>}> ({ 
 // CHECK:     ^bb0(%2: !dlam.bvar<0>): 
 // CHECK:        "dlam.vreturn"(%2) <{expected = !dlam.bvar<0>}> : (!dlam.bvar<0>) -> () 
 // CHECK:      }) : () -> !dlam.fun<!dlam.bvar<0>, !dlam.bvar<0>> 
+// CHECK-NOT: "dlam.tapply"
 // CHECK:     "dlam.treturn"(%1) <{expected = !dlam.fun<!dlam.bvar<0>, !dlam.bvar<0>>}> : (!dlam.fun<!dlam.bvar<0>, !dlam.bvar<0>>) -> () 
 // CHECK:      }) : () -> !dlam.forall<!dlam.fun<!dlam.bvar<0>, !dlam.bvar<0>>> 
 // CHECK:  }
