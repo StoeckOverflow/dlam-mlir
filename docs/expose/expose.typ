@@ -224,7 +224,7 @@ The first stage studies parametric polymorphism as a conceptual precursor to val
 
 Concretely, two representations of parametric polymorphism are implemented in ScaIR. Both correspond to universally quantified types of the form:
 
-$ #sym.Lambda T: "Type". #sym.lambda x:T. x $
+$ #sym.Lambda (T: "Type"). #sym.lambda (x:T). x : forall sigma. sigma -> sigma $
 
 The first representation encodes type variables purely at the type level using de Bruijn indices. This encoding relies exclusively on mechanisms compatible with MLIR’s existing type model. Types may abstract over type parameters, but they do not reference SSA values. This implementation establishes a baseline and exposes the complexity of representing abstraction, substitution, and scoping entirely within the type system.
 
@@ -245,7 +245,7 @@ Here, SSA values appearing in types represent type parameters, not runtime-compu
 
 Building on parametric polymorphism, the second stage generalizes type-level parameters from types to values, such as natural numbers. This generalization enables types of the form:
 
-$ #sym.Lambda N: "Nat". #sym.lambda x:N."f32". x $
+$ #sym.Lambda (N: "Nat"). #sym.lambda (x:N."f32"). x : #sym.Pi (N:"Nat").N."f32" -> N."f32" $
 
 To explore this generalization, the thesis introduces a minimal formalization of value-level dependency in types, which extends the parametric setting with value-level parameters while reusing the same abstraction, scoping, and substitution mechanisms.
 
