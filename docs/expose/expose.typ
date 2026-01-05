@@ -29,16 +29,15 @@
 // =========================================================
 #pagebreak()
 
-#set page(width: auto, height: auto, margin: 5mm, fill: white)
-
+#set page(paper: "a4")
 #diagram(
   node-stroke: luma(80%),
   edge-corner-radius: none,
-  spacing: (10pt, 20pt),
+  spacing: (5pt, 35pt),
 
   node(
-    (1.5, 0),
-    [
+    (0.7, 0),
+    block(width: 7cm)[
       *S -- Situation* \
       Symbolic properties derived from runtime values (shapes, bounds, dimension relations) \
       matter for correctness and performance, but are not preserved as type-level invariants in MLIR.
@@ -47,18 +46,18 @@
   ),
 
   node(
-    (0.5, 1),
-    [
+    (0, 1),
+    block(width: 7cm)[
       *C1 -- Complication (Core MLIR)* \
-      MLIR types are uniqued, structural descriptors and cannot depend on SSA values or region-local relationships; \
-      invariants that rely on runtime values therefore cannot be carried in types across passes.
+      MLIR types are context-independent and cannot depend on SSA values or region-local structure; \
+      symbolic invariants derived from SSA values therefore cannot be preserved at the type level across passes.
     ],
     name: <C1>,
   ),
 
   node(
-    (2.5, 1),
-    [
+    (1.5, 1),
+    block(width: 7cm)[
       *C2 -- Complication (Tensor/Shapes)* \
       Tensor shape/bounds constraints are represented operationally (SSA + attributes + analyses), \
       so passes must repeatedly re-derive and re-check legality conditions.
@@ -67,8 +66,8 @@
   ),
 
   node(
-    (0.5, 2),
-    [
+    (0, 2),
+    block(width: 7cm)[
       *Q1 -- Question (MLIR Core)* \
       How can dependent types be represented at the type level in MLIR while respecting its SSA-based structure \
       and remaining stable under IR transformations?
@@ -77,8 +76,8 @@
   ),
 
   node(
-    (2.5, 2),
-    [
+    (1.5, 2),
+    block(width: 7cm)[
       *Q2 -- Question (Tensor Dialect)* \
       How can dependent types express and preserve tensor shape invariants relevant for correctness \
       and optimization across tensor transformations?
@@ -87,8 +86,8 @@
   ),
 
   node(
-    (0.5, 3),
-    [
+    (0, 3),
+    block(width: 7cm)[
       *A1 -- Answer (Core Approach)* \
       Prototype in ScaIR a restricted form of dependent typing (value-dependent types): \
       (1) parametric polymorphism via type variables; \
@@ -98,8 +97,8 @@
   ),
 
   node(
-    (2.5, 3),
-    [
+    (1.5, 3),
+    block(width: 7cm)[
       *A2 -- Answer (Tensor Case Study)* \
       Define value-indexed tensor/vector and index types (e.g., `tensor<%n x f32>`, `Idx(%n)`) \
       to carry symbolic shape/bounds parameters as stable type-level metadata for legality checks.
@@ -108,8 +107,8 @@
   ),
 
   node(
-    (0.5, 4),
-    [
+    (0, 4),
+    block(width: 7cm)[
       *V1 -- Value (Core)* \
       Clarifies minimal mechanisms and MLIR constraints required for transformation-stable types that depend on values.
     ],
@@ -117,8 +116,8 @@
   ),
 
   node(
-    (2.5, 4),
-    [
+    (1.5, 4),
+    block(width: 7cm)[
       *V2 -- Value (Tensor)* \
       Preserves symbolic shape/bounds information across passes, improving early error detection \
       and robustness of shape-sensitive transformations.
@@ -150,7 +149,9 @@
 
 = Situation (S)
 
-Modern compiler pipelines increasingly rely on symbolic program properties that depend on runtime values, such as tensor shapes, index bounds, and algebraic relations between dimensions. These properties are central to both correctness and performance. For example, matrix multiplication is well-defined only when specific dimension equalities hold, while optimizations such as tiling, fusion, vectorization, and buffer reuse depend on symbolic constraints over tensor extents.
+Modern compiler pipelines rely on symbolic program properties that depend on runtime values, such as tensor shapes, index bounds, and algebraic relations between dimensions. These properties are central to both correctness and performance. For example, matrix multiplication is well-defined only when specific dimension equalities hold, while optimizations such as tiling, fusion, vectorization, and buffer reuse depend on symbolic constraints over tensor extents.
+
+This reliance on symbolic reasoning over program values is already evident in modern compiler systems:: tensor compilers such as TVM represent shapes and index expressions symbolically during scheduling and lowering, while systems like Halide explore parameterized schedule spaces whose legality and performance depend on symbolic bounds and extents (@chen2018tvm, @halide_pldi13).
 
 To support correctness checking and optimization, compiler infrastructures and high-level domain-specific languages must therefore preserve and reason about symbolic properties throughout the compilation pipeline. Representing shape and index information symbolically, rather than treating it solely as runtime data, enables earlier detection of errors and more reliable optimization decisions.
 
@@ -160,27 +161,24 @@ In modern compiler infrastructures such as MLIR, however, these symbolic propert
 
 == C1 -- Core MLIR Complication
 
-In compiler infrastructures, types encode stable program invariants. Analyses consult them uniformly, transformations preserve them, and executions assume that they hold for all program instances. For symbolic properties relevant to correctness and optimization, such as shape relations or index bounds, types therefore provide the most effective representation, since they persist across transformations and function as global invariants.
+In MLIR, types encode stable program invariants. Analyses consult them uniformly, transformations preserve them, and executions assume that they hold for all program instances. For symbolic properties relevant to correctness and optimization, such as shape relations or index bounds, types therefore provide the most effective representation, since they persist across transformations and function as global invariants.
 
-Despite this role, MLIR’s core type system cannot express types whose structure depends on program values or value-level relationships. In type-theoretic terms, it does not support dependent typing.
+MLIR’s core type system, however, is deliberately restricted to non-dependent types. These restrictions are intentional: they ensure that types remain simple, uniformly checkable, and stable under arbitrary IR transformations. Types are designed to be context-independent descriptors of compile-time properties and are kept separate from SSA values, control flow, and region structure. In type-theoretic terms, MLIR does not support dependent typing.
 
-In MLIR, types are uniqued within an `MLIRContext` and are defined exclusively by context-independent structural parameters. As a consequence, types cannot depend on SSA values, dominance relations, or region-local program structure. Type equality is determined globally by structural equivalence under uniquing, and type checking does not incorporate information about control flow or value provenance.
+This design choice is reflected in several core assumptions of the MLIR infrastructure:
 
-Concretely, MLIR’s core infrastructure assumes that:
-
-- types are independent of SSA values and control-flow structure,
-- type equality is determined by global structural equivalence,
-- dominance and region scoping are not considered during type checking,
+- types do not reference SSA values or region-local program structure,
+- type checking does not incorporate dominance or control-flow information,
 - IR transformations such as RAUW, cloning, and inlining do not rewrite types,
-- parsing and printing treat types as closed, context-free descriptors.
+- types are treated as closed descriptors that remain valid under arbitrary transformations.
 
-Under these assumptions, types cannot depend on runtime values or on relationships between values. As a result, dimension equalities, index bounds, and algebraic relations derived from values cannot be expressed, preserved, or checked at the type level. Although MLIR supports limited forms of parametricity at the operation level through attributes and generic mechanisms, the core type system provides neither type variables nor mechanisms for expressing dependencies between types and values.
+These assumptions ensure that types function as global, transformation-stable invariants, but they also prevent types from depending on runtime values represented as SSA values or on relationships between them. As a result, dimension equalities, index bounds, and algebraic relations derived from SSA values cannot be expressed, preserved, or checked at the type level.
 
-Instead, MLIR represents symbolic information exclusively at the value level. This representation is inherently operational: it depends on SSA graphs, control flow, and local analyses, and transformations such as cloning or inlining invalidate it. Consequently, symbolic constraints expressed at the value level do not persist across transformations and cannot serve as global invariants throughout the compilation pipeline.
+Although MLIR supports rich symbolic reasoning at the value level through SSA graphs, attributes, and dialect-specific analyses, this information is inherently operational and pass-local. Transformations such as cloning or inlining invalidate value-level reasoning, and symbolic constraints must be repeatedly reconstructed. Consequently, symbolic properties expressed at the value level cannot serve as stable invariants throughout the compilation pipeline.
 
 == C2 -- Tensor Dialect and Application-Level Consequences
 
-At the tensor-dialect level, the inability of tensor types to depend on runtime values or value-level relationships prevents shape-related correctness and performance constraints from being represented as stable type-level invariants. As a result, relationships between tensor dimensions cannot be expressed directly at the type level.
+At the tensor-dialect level, the inability of tensor types to depend on SSA values or value-level relationships prevents shape-related correctness and performance constraints from being represented as stable type-level invariants. As a result, relationships between tensor dimensions cannot be expressed directly at the type level.
 
 Tensor dimensions that are computed dynamically, for example through shape arithmetic, loop bounds, or index calculations, must be represented as SSA values or attributes rather than as symbolic components of tensor types. As a result, MLIR tensor and vector types can encode individual dimensions as static integers or dynamic placeholders, but cannot express relationships between dimensions or global constraints that must hold simultaneously.
 
@@ -226,9 +224,11 @@ Concretely, two representations of parametric polymorphism are implemented in Sc
 
 $ #sym.Lambda (T: "Type"). #sym.lambda (x:T). x : forall sigma. sigma -> sigma $
 
+Here, $sigma$ denotes a bound type variable written in de Bruijn style, reflecting that the variable is referenced outside the scope in which it is named.
+
 The first representation encodes type variables purely at the type level using de Bruijn indices. This encoding relies exclusively on mechanisms compatible with MLIR’s existing type model. Types may abstract over type parameters, but they do not reference SSA values. This implementation establishes a baseline and exposes the complexity of representing abstraction, substitution, and scoping entirely within the type system.
 
-The second representation encodes type variables explicitly using SSA values embedded in types. Although parameters still range over types rather than runtime values, this encoding already requires the core mechanisms needed for value-dependent typing: embedding SSA references into types, tracking dominance and scope, and rewriting type-level references during transformations.
+The second representation encodes type variables explicitly using SSA values embedded in types. Although parameters still range over types rather than SSA values, this encoding already requires the core mechanisms needed for value-dependent typing: embedding SSA references into types, tracking dominance and scope, and rewriting type-level references during transformations.
 
 Comparing these two encodings serves a methodological purpose. The de Bruijn-based encoding preserves MLIR’s current assumptions, while the SSA-based encoding demonstrates that allowing types to reference SSA values simplifies abstraction and substitution while remaining compatible with transformation semantics.
 
@@ -245,7 +245,7 @@ Here, SSA values appearing in types represent type parameters, not runtime-compu
 
 Building on parametric polymorphism, the second stage generalizes type-level parameters from types to values, such as natural numbers. This generalization enables types of the form:
 
-$ #sym.Lambda (N: "Nat"). #sym.lambda (x:N."f32"). x : #sym.Pi (N:"Nat").N."f32" -> N."f32" $
+$ #sym.Lambda (N: "Nat"). #sym.lambda (x: N."f32"). x : #sym.Pi (N:"Nat"). N."f32" -> N."f32" $
 
 To explore this generalization, the thesis introduces a minimal formalization of value-level dependency in types, which extends the parametric setting with value-level parameters while reusing the same abstraction, scoping, and substitution mechanisms.
 
