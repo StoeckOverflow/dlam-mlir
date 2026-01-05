@@ -11,7 +11,7 @@
     (1.5, 0),
     [
       *S -- Situation* \
-      Symbolic, value-dependent properties (shapes, bounds, dimension relations) \
+      Symbolic properties derived from runtime values (shapes, bounds, dimension relations) \
       matter for correctness and performance, but are not preserved as type-level invariants in MLIR.
     ],
     name: <S>,
@@ -21,8 +21,8 @@
     (0.5, 1),
     [
       *C1 -- Complication (Core MLIR)* \
-      MLIR types are uniqued, structural descriptors and cannot depend on SSA values or regional scope; \
-      value-dependent invariants therefore cannot be carried in types across passes.
+      MLIR types are uniqued, structural descriptors and cannot depend on SSA values or region-local relationships; \
+      invariants that rely on runtime values therefore cannot be carried in types across passes.
     ],
     name: <C1>,
   ),
@@ -31,8 +31,8 @@
     (2.5, 1),
     [
       *C2 -- Complication (Tensor/Shapes)* \
-      Shape/bounds constraints live operationally (SSA + attributes + analyses), so tensor passes \
-      must repeatedly re-derive and re-check legality conditions.
+      Tensor shape/bounds constraints are represented operationally (SSA + attributes + analyses), \
+      so passes must repeatedly re-derive and re-check legality conditions.
     ],
     name: <C2>,
   ),
@@ -41,8 +41,8 @@
     (0.5, 2),
     [
       *Q1 -- Question (MLIR Core)* \
-      How can value-dependent information be represented at the type level in MLIR while respecting \
-      its SSA-based structure and remaining stable under IR transformations?
+      How can dependent types be represented at the type level in MLIR while respecting its SSA-based structure \
+      and remaining stable under IR transformations?
     ],
     name: <Q1>,
   ),
@@ -51,8 +51,8 @@
     (2.5, 2),
     [
       *Q2 -- Question (Tensor Dialect)* \
-      How can value-dependent types be used to express and preserve tensor shape invariants that are \
-      relevant for correctness and optimization across tensor transformations?
+      How can dependent types express and preserve tensor shape invariants relevant for correctness \
+      and optimization across tensor transformations?
     ],
     name: <Q2>,
   ),
@@ -61,10 +61,9 @@
     (0.5, 3),
     [
       *A1 -- Answer (Core Approach)* \
-      Stage the design in ScaIR: \
-      (1) type variables for parametric polymorphism; \
-      (2) generalize to value parameters by allowing SSA values as type arguments with scoping \
-      and substitution under transformations.
+      Prototype in ScaIR a restricted form of dependent typing (value-dependent types): \
+      (1) parametric polymorphism via type variables; \
+      (2) generalize to value parameters (SSA-valued type arguments) with scoping and rewrite rules under transformations.
     ],
     name: <A1>,
   ),
@@ -83,8 +82,7 @@
     (0.5, 4),
     [
       *V1 -- Value (Core)* \
-      Clarifies minimal mechanisms and MLIR constraints for type-level parameters, \
-      and what must hold for transformation-stable value-dependent typing.
+      Clarifies minimal mechanisms and MLIR constraints required for transformation-stable types that depend on values.
     ],
     name: <V1>,
   ),
@@ -99,7 +97,6 @@
     name: <V2>,
   ),
 
-  // Edges (simple, robust)
   edge(<S>, <C1>, "-|>"),
   edge(<S>, <C2>, "-|>"),
   edge(<C1>, <Q1>, "-|>"),
