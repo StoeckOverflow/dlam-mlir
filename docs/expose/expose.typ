@@ -210,25 +210,19 @@ To address the absence of stable type-level representations for symbolic program
 
 Instead of pursuing full dependent typing, the thesis focuses on a restricted form of dependency, namely value-dependent types, in which types may depend on program values under explicitly defined scoping and transformation rules. Rather than introducing refinement types, logical predicates, or proof obligations, this work focuses on preserving symbolic value dependencies as stable type-level invariants. This approach preserves symbolic expressiveness while avoiding the complexity of fully general dependent type theories, as explored in prior work on value-dependent typing and indexed types @paszke2021gettingpointindexsets, @secureDistributedProgrammingValueDependentTypes.
 
-To make this distinction precise, the thesis differentiates between type parameters and value parameters.\
-In Stage 1, parametric polymorphism introduces type parameters, which range over types and serve as abstract placeholders resolved purely at the type level. Even when represented using SSA values, these parameters do not denote computed program values. They function solely as binders for types and carry no value-level meaning.\
-In Stage 2, this notion is generalized to value parameters, which range over actual program values represented as SSA values. In this setting, types may depend on the results of computation, and the validity of such types depends on semantic properties of the IR such as dominance, lifetime, and region structure.
-
-Rather than introducing value-dependent types directly, the investigation proceeds incrementally. Value-dependent typing is a principled generalization of type-level parametricity: both rely on type-level abstraction, scoping, and substitution, but differ in the domain over which parameters range. In parametric polymorphism, types are abstracted over type parameters, whereas in value-dependent typing, types are abstracted over value parameters, which range over program values represented as SSA values. Parametric polymorphism therefore exercises a strict subset of the mechanisms required for value-dependent typing (abstraction, scoping, and substitution at the type level), while deliberately excluding any dependency on program values.
-
-Based on this observation, the investigation proceeds in two stages: first, the introduction of parametric polymorphism via type variables; second, a principled generalization from type parameters to value-dependent types.
+To structure the investigation, the thesis distinguishes between two kinds of parameters. In parametric polymorphism, types are abstracted over type parameters, which range over types and are resolved purely at the type level, even when represented using SSA values. Value-dependent typing generalizes this notion to value parameters, which range over computed program values represented explicitly as SSA values. This distinction motivates a two-stage approach: first establishing parametric polymorphism as a baseline, and then generalizing the same mechanisms to value-dependent types.
 
 To explore this design space in a controlled manner, the thesis uses ScaIR as a prototyping platform. ScaIR is a Scala-based MLIR implementation that provides typed algebraic data types for IR construction, enabling rapid experimentation with type-system designs @edin_dal_scair. Using ScaIR allows conceptual questions about type-level abstraction, scoping, and substitution to be studied independently of MLIR’s C++ implementation constraints.
 
 === Stage 1: Parametric Polymorphism via Type Parameters
 
-The first stage studies parametric polymorphism as a conceptual precursor to value-dependent types and isolates challenges related to type-level abstraction before introducing value parameters. Concretely, two representations of parametric polymorphism are implemented in ScaIR. Both correspond to universally quantified types of the form:
+In the first stage, the thesis implements parametric polymorphism in ScaIR to establish a baseline for type-level abstraction and substitution. Two representations are explored, both corresponding to universally quantified types of the form:
 
 $ #sym.Lambda (T: "Type"). #sym.lambda (x:T). x : forall sigma. sigma -> sigma $
 
 Here, $T$ is a type parameter introduced by a type-level abstraction and $sigma$ denotes a bound type variable referring to that parameter, represented in de Bruijn form. The use of de Bruijn indices reflects that the variable is identified by its binding position rather than by name, making scoping and substitution explicit and avoiding reliance on named references at this stage.
 
-The first representation encodes type variables purely at the type level using de Bruijn indices. This encoding relies exclusively on mechanisms compatible with MLIR’s existing type system. Types may abstract over type parameters, but they do not reference SSA values. This implementation establishes a baseline and exposes the complexity of representing abstraction, substitution, and scoping entirely within the type system.
+The first representation encodes type variables purely at the type level using de Bruijn indices. This encoding relies exclusively on mechanisms compatible with MLIR’s existing type system. Types may abstract over type parameters, but they do not reference SSA values. This implementation exposes the complexity of representing abstraction, substitution, and scoping entirely within the type system.
 
 The second representation encodes type variables explicitly using SSA values embedded in types. Although these type parameters still range over types rather than program values, their representation via SSA values already requires several of the structural mechanisms later needed for value-dependent typing: embedding SSA references into types, enforcing basic dominance and scoping conditions for well-formedness, and rewriting type-level references during IR transformations.
 
@@ -247,7 +241,7 @@ This stage therefore isolates the structural mechanisms needed for type-level ab
 
 === Stage 2: Value-Dependent Types via Value Parameters
 
-Building on the mechanisms established in Stage 1, Stage 2 generalizes type parameters to value parameters (e.g., natural numbers represented as SSA values). This generalization enables types of the form:
+Stage 2 generalizes the mechanisms established in Stage 1 from type parameters to value parameters, which range over program values represented as SSA values in the IR. This generalization enables types whose structure depends on the results of computation and enables types of the form:
 
 $ #sym.Lambda (N: "Nat"). #sym.lambda (x: N."f32"). x : #sym.Pi (N:"Nat"). N."f32" -> N."f32" $
 
@@ -255,7 +249,7 @@ This example is schematic and serves to illustrate value-dependent types. The un
 
 Rather than introducing fundamentally new abstraction or substitution mechanisms, this stage reuses the representation, scoping, and substitution machinery developed for parametric polymorphism and extends it to value parameters. Value-dependent types are introduced as a core IR mechanism, independent of any particular dialect or application domain.
 
-The key additional challenge in Stage 2 is that abstraction is no longer over type parameters but over value parameters that range over program values. While SSA references already appear in Stage 1, they function there purely as type-level binders whose scoping constraints ensure only structural well-formedness. In Stage 2, SSA values embedded in types refer to computed program values, so dominance, lifetime, and region structure determine whether a value-dependent type is valid at its use sites.
+While SSA references already appear in Stage 1, they function there purely as binders for type parameters and are checked only for structural well-formedness. In Stage 2, SSA values embedded in types denote computed program values, so dominance, lifetime, and region structure determine whether a value-dependent type is valid at its use sites.
 
 As a consequence, value-dependent types require explicit well-formedness and preservation conditions that are enforced uniformly across the IR, including:
 
