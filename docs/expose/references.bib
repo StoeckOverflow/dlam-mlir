@@ -107,3 +107,31 @@
   booktitle = {PLDI},
   year = {2013},
 }
+
+@inproceedings{secureDistributedProgrammingValueDependentTypes,
+author = {Swamy, Nikhil and Chen, Juan and Fournet, C\'{e}dric and Strub, Pierre-Yves and Bhargavan, Karthikeyan and Yang, Jean},
+title = {Secure distributed programming with value-dependent types},
+year = {2011},
+isbn = {9781450308656},
+publisher = {Association for Computing Machinery},
+address = {New York, NY, USA},
+url = {https://doi.org/10.1145/2034773.2034811},
+doi = {10.1145/2034773.2034811},
+abstract = {Distributed applications are difficult to program reliably and securely. Dependently typed functional languages promise to prevent broad classes of errors and vulnerabilities, and to enable program verification to proceed side-by-side with development. However, as recursion, effects, and rich libraries are added, using types to reason about programs, specifications, and proofs becomes challenging.We present F*, a full-fledged design and implementation of a new dependently typed language for secure distributed programming. Unlike prior languages, F* provides arbitrary recursion while maintaining a logically consistent core; it enables modular reasoning about state and other effects using affine types; and it supports proofs of refinement properties using a mixture of cryptographic evidence and logical proof terms. The key mechanism is a new kind system that tracks several sub-languages within F* and controls their interaction. F* subsumes two previous languages, F7 and Fine. We prove type soundness (with proofs mechanized in Coq) and logical consistency for F*.We have implemented a compiler that translates F* to .NET bytecode, based on a prototype for Fine. F* provides access to libraries for concurrency, networking, cryptography, and interoperability with C#, F#, and the other .NET languages. The compiler produces verifiable binaries with 60\% code size overhead for proofs and types, as much as a 45x improvement over the Fine compiler, while still enabling efficient bytecode verification.To date, we have programmed and verified more than 20,000 lines of F* including (1) new schemes for multi-party sessions; (2) a zero-knowledge privacy-preserving payment protocol; (3) a provenance-aware curated database; (4) a suite of 17 web-browser extensions verified for authorization properties; and (5) a cloud-hosted multi-tier web application with a verified reference monitor.},
+booktitle = {Proceedings of the 16th ACM SIGPLAN International Conference on Functional Programming},
+pages = {266–278},
+numpages = {13},
+keywords = {refinement types, security types},
+location = {Tokyo, Japan},
+series = {ICFP '11}
+}
+
+@misc{paszke2021gettingpointindexsets,
+      title={Getting to the Point. Index Sets and Parallelism-Preserving Autodiff for Pointful Array Programming}, 
+      author={Adam Paszke and Daniel Johnson and David Duvenaud and Dimitrios Vytiniotis and Alexey Radul and Matthew Johnson and Jonathan Ragan-Kelley and Dougal Maclaurin},
+      year={2021},
+      eprint={2104.05372},
+      archivePrefix={arXiv},
+      primaryClass={cs.PL},
+      url={https://arxiv.org/abs/2104.05372}, 
+}
