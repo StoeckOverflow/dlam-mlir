@@ -150,7 +150,7 @@
 
 = Situation (S)
 
-Modern compiler pipelines rely on symbolic program properties that depend on runtime values, such as tensor shapes, and algebraic relations between dimensions. These properties are central to both correctness and performance. For example, matrix multiplication is well-defined only when specific dimension equalities hold, while optimizations such as tiling, fusion, vectorization, and buffer reuse depend on symbolic constraints over tensor extents.
+Modern compiler pipelines rely on symbolic program properties that depend on runtime values, such as tensor shapes and algebraic relations between dimensions. These properties are central to both correctness and performance. For example, matrix multiplication is well-defined only when specific dimension equalities hold, while optimizations such as tiling, fusion, vectorization, and buffer reuse depend on symbolic constraints over tensor extents.
 
 This reliance on symbolic reasoning over program values and their relationships is already evident in modern compiler systems: tensor compilers such as TVM represent shapes and index expressions symbolically during scheduling and lowering, while systems like Halide explore parameterized schedule spaces whose legality and performance depend on symbolic shapes and extents @chen2018tvm, @halide_pldi13.
 
@@ -170,10 +170,10 @@ This design choice is reflected in several core assumptions of the MLIR infrastr
 
 - types do not reference SSA values or region-local program structure,
 - type checking does not incorporate dominance or control-flow information,
-- IR transformations such as replace-all-uses-with (RAUW), operation cloning, and function inlining do not rewrite types,
+- IR transformations such as replace-all-uses-with, operation cloning, and function inlining are defined to preserve types and therefore do not rewrite them,
 - types are treated as closed descriptors that remain valid under arbitrary transformations.
 
-These assumptions ensure that types function as global, transformation-stable invariants, but they also prevent types from depending on runtime values represented as SSA values or on relationships between them. As a result, dimension equalities and algebraic relations derived from SSA values cannot be expressed, preserved, or checked at the type level.
+These assumptions ensure that types function as global, transformation-stable invariants, but they also prevent types from depending on runtime values represented as SSA values or on relationships computed at the value level. As a result, dimension equalities and algebraic relations derived from SSA values cannot be expressed, preserved, or checked at the type level.
 
 Although MLIR supports rich symbolic reasoning at the value level through SSA graphs, attributes, and dialect-specific analyses, this information is inherently operational and pass-local. Transformations such as cloning or inlining invalidate value-level reasoning, and symbolic constraints must be repeatedly reconstructed. Consequently, symbolic properties expressed at the value level cannot serve as stable invariants throughout the compilation pipeline.
 
@@ -288,8 +288,8 @@ The work intentionally avoids introducing a full equational theory or normalizat
 Case studies include:
 
 - lowering Rise-style shape-indexed types into value-indexed MLIR tensor types,
-- encoding value-indexed tensor types inspired by array/tensor types such as `Vector(n)` in @pierce2024advanced),
-- evaluating the stability of such types under standard MLIR transformations, including replace-all-uses-with (RAUW), common subexpression elimination (CSE), dead code elimination (DCE), loop-invariant code motion (LICM), and function inlining.
+- encoding value-indexed tensor types inspired by value-indexed array abstractions such as `Vector(n)` (@pierce2024advanced),
+- evaluating stability under standard MLIR transformations (e.g., replace-all-uses-with, common subexpression elimination, dead code elimination, and function inlining).
 
 = Values (V1, V2)
 
