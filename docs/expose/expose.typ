@@ -310,9 +310,9 @@ Applying value-dependent types to tensor abstractions shows how symbolic shape i
 
 Value-indexed tensor types enable:
 
-- preservation of symbolic shape relations across transformations,
-- static enforcement of shape-related correctness conditions at the type level,
-- explicit and robust legality checks for tensor transformations,
+- preservation of symbolic shape relations as transformation-stable type-level invariants,
+- explicit representation of shape-related correctness conditions at the type level,
+- enabling robust and uniform legality checks for tensor transformations,
 - closer alignment between MLIR and shape-indexed DSLs such as Rise.
 
 Rather than introducing a full dependent type system or symbolic solver, this work demonstrates that a restricted, symbolic form of value dependence already yields substantial benefits for correctness and optimization.
