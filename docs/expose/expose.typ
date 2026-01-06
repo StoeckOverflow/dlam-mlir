@@ -170,7 +170,7 @@ This design choice is reflected in several core assumptions of the MLIR infrastr
 
 - types do not reference SSA values or region-local program structure,
 - type checking does not incorporate dominance or control-flow information,
-- IR transformations such as RAUW, cloning, and inlining do not rewrite types,
+- IR transformations such as replace-all-uses-with (RAUW), operation cloning, and function inlining do not rewrite types,
 - types are treated as closed descriptors that remain valid under arbitrary transformations.
 
 These assumptions ensure that types function as global, transformation-stable invariants, but they also prevent types from depending on runtime values represented as SSA values or on relationships between them. As a result, dimension equalities, index bounds, and algebraic relations derived from SSA values cannot be expressed, preserved, or checked at the type level.
@@ -213,7 +213,7 @@ Instead of pursuing full dependent typing, the thesis focuses on a restricted an
 
 To explore this design space in a controlled manner, the thesis uses ScaIR as a prototyping platform. ScaIR is a Scala-based intermediate representation that provides typed algebraic data types for IR construction, enabling rapid experimentation with type-system designs @edin_dal_scair. Using ScaIR allows conceptual questions about type-level abstraction, scoping, and substitution to be studied independently of MLIR’s C++ implementation constraints.
 
-Rather than addressing value-dependent types directly, the investigation proceeds incrementally. The central observation is that value-dependent typing is a principled generalization of type-level parametricity: both rely on type-level abstraction, scoping, and substitution, but differ in the domain over which parameters range. In parametric polymorphism, types are abstracted over type parameters, whereas in value-dependent typing, types are abstracted over program values. Parametric polymorphism therefore exercises a strict subset of the mechanisms required for value-dependent typing (abstraction, scoping, and substitution at the type level), while deliberately excluding any dependency on program values.
+Rather than introducing value-dependent types directly, the investigation proceeds incrementally. The central observation is that value-dependent typing is a principled generalization of type-level parametricity: both rely on type-level abstraction, scoping, and substitution, but differ in the domain over which parameters range. In parametric polymorphism, types are abstracted over type parameters, whereas in value-dependent typing, types are abstracted over program values. Parametric polymorphism therefore exercises a strict subset of the mechanisms required for value-dependent typing (abstraction, scoping, and substitution at the type level), while deliberately excluding any dependency on program values.
 
 Based on this observation, the investigation proceeds in two stages: first, the introduction of parametric polymorphism via type variables; second, a principled generalization from type parameters to value-dependent types.
 
@@ -238,7 +238,7 @@ At this stage, the implementation supports:
 - universally quantified function types,
 - type-level abstraction, substitution, and instantiation,
 - basic dominance and scoping checks to ensure structural well-formedness of SSA references in types,
-- compatibility with core MLIR transformations (RAUW, cloning, inlining).
+- compatibility with core MLIR transformations.
 
 This stage therefore isolates the structural mechanisms needed for type-level abstraction and substitution, while deliberately deferring any interpretation of SSA values as program values to the next stage.
 
@@ -252,7 +252,7 @@ This example is schematic and serves to illustrate value-indexed types; the unde
 
 Rather than introducing fundamentally new abstraction or substitution mechanisms, this stage reuses the representation, scoping, and substitution machinery developed for parametric polymorphism and extends it to value-level parameters. Value-dependent types are introduced as a core IR mechanism, independent of any particular dialect or application domain.
 
-The key additional challenge in Stage 2 is that type parameters now range over program values rather than abstract type parameters. While SSA references already appear in Stage 1, they function there purely as type-level binders whose scoping constraints ensure only structural well-formedness. In Stage 2, SSA values denote computed program values, and dominance, lifetime, and region structure determine whether a value-dependent type is semantically meaningful at its use sites, including:
+The key additional challenge in Stage 2 is that type parameters now range over program values rather than abstract type parameters. While SSA references already appear in Stage 1, they function there purely as type-level binders whose scoping constraints ensure only structural well-formedness. In Stage 2, SSA values denote computed program values, and dominance, lifetime, and region structure determine whether a value-dependent type is well-defined at its use sites, including:
 
 - dominance requirements ensuring that SSA values used in types are available at all type use sites,
 - region and lifetime constraints governing the validity of value-level parameters,
@@ -273,7 +273,7 @@ tensor<%n x f32>
 vector<%m x i32>
 ```
 
-In standard MLIR, shape information resides at the value level (e.g., as results of `tensor.dim` or shape-dialect operations) and analyses must reconstruct shape relationships after each transformation. By embedding symbolic parameters directly in types, these parameters become pass-stable metadata, provided that dominance-aware well-formedness conditions and rewrite rules for transformations (e.g., RAUW, cloning, inlining) are defined and enforced.
+In standard MLIR, shape information resides at the value level (e.g., as results of `tensor.dim` or shape-dialect operations) and analyses must reconstruct shape relationships after each transformation. By embedding symbolic parameters directly in types, these parameters become pass-stable metadata, provided that dominance-aware well-formedness conditions and transformation-aware rewrite rules are defined and enforced.
 
 This approach enables:
 
@@ -287,7 +287,7 @@ Case studies include:
 
 - lowering Rise-style shape-indexed types into value-indexed MLIR tensor types,
 - encoding ATTAPL-style value-indexed tensor and index types (e.g. `Vector(n)`, `Idx(n)`),
-- evaluating the stability of such types under MLIR transformations (RAUW, CSE, DCE, LICM, inlining).
+- evaluating the stability of such types under standard MLIR transformations, including replace-all-uses-with (RAUW), common subexpression elimination (CSE), dead code elimination (DCE), loop-invariant code motion (LICM), and function inlining.
 
 = Values (V1, V2)
 
