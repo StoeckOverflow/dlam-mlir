@@ -92,7 +92,7 @@
       *A1 -- Answer (MLIR Core)* \
       Prototype a restricted form of dependent typing (value-dependent types): \
       (1) parametric polymorphism via type variables; \
-      (2) generalize to value parameters (SSA-valued type arguments) with scoping and rewrite rules under transformations.
+      (2) generalization to SSA-valued type parameters, with explicit scoping and transformation-aware rewrite rules.
     ],
     name: <A1>,
   ),
@@ -101,7 +101,7 @@
     (1.5, 3),
     block(width: 7cm)[
       *A2 -- Answer (Tensor Dialect)* \
-      Define value-indexed tensor/vector and index types (e.g., `tensor<%n x f32>`) \
+      Define value-indexed tensor/vector types (e.g., `tensor<%n x f32>`) \
       to carry symbolic shape parameters as stable type-level metadata for legality checks.
     ],
     name: <A2>,
@@ -120,8 +120,7 @@
     (1.5, 4),
     block(width: 7cm)[
       *V2 -- Value (Tensor Dialect)* \
-      Preserves symbolic shape information across passes, improving early error detection \
-      and robustness of shape-sensitive transformations.
+      Preserves symbolic shape information across passes, improving early error detection and robustness of shape-sensitive transformations.
     ],
     name: <V2>,
   ),
@@ -150,11 +149,11 @@
 
 = Situation (S)
 
-Modern compiler pipelines rely on symbolic program properties that depend on runtime values, such as tensor shapes and algebraic relations between dimensions. These properties are central to both correctness and performance. For example, matrix multiplication is well-defined only when specific dimension equalities hold, while optimizations such as tiling, fusion, vectorization, and buffer reuse depend on symbolic constraints over tensor extents.
+Modern compiler pipelines rely on symbolic program properties that depend on runtime values, such as tensor shapes and algebraic relations between dimensions. These properties are central to both correctness and performance. For example, matrix multiplication is well-defined only when specific dimension equalities hold, while optimizations such as tiling, fusion, vectorization, and buffer reuse depend on symbolic constraints over tensor extents (i.e., dimension sizes).
 
 This reliance on symbolic reasoning over program values and their relationships is already evident in modern compiler systems: tensor compilers such as TVM represent shapes and index expressions symbolically during scheduling and lowering, while systems like Halide explore parameterized schedule spaces whose legality and performance depend on symbolic shapes and extents @chen2018tvm, @halide_pldi13.
 
-To support correctness checking and optimization, compiler infrastructures and high-level domain-specific languages must therefore preserve and reason about symbolic properties throughout the compilation pipeline. Representing shape and index information symbolically, rather than treating it solely as runtime data, enables earlier detection of errors and more reliable optimization decisions.
+To support correctness checking and optimization, compiler infrastructures and high-level domain-specific languages must therefore preserve and reason about symbolic properties throughout the compilation pipeline. Representing shape information symbolically (e.g., at the type-level), rather than treating it solely as runtime data, enables earlier detection of errors and more reliable optimization decisions.
 
 In modern compiler infrastructures such as MLIR, however, these symbolic properties must be represented across multiple abstraction levels and program transformations, which presents fundamental challenges.
 
@@ -185,7 +184,7 @@ Tensor dimensions that are computed dynamically, for example through shape arith
 
 In particular:
 
-- tensor and vector types cannot encode dependencies such as equality, sums, divisibility, or alignment between dimensions,
+- tensor and vector types cannot encode structural relationships between dimensions, such as equality, sums, divisibility, or alignment,
 - shape consistency conditions and dimensional legality constraints cannot be enforced at the type level,
 - legality conditions for tensor transformations (e.g., fusion, tiling, or vectorization) cannot be expressed as type-level invariants.
 
@@ -211,7 +210,7 @@ To address the absence of stable type-level representations for symbolic program
 
 Instead of pursuing full dependent typing, the thesis focuses on a restricted form of dependency, namely value-dependent types, in which types may depend on program values under explicitly defined scoping and transformation rules. Rather than introducing refinement types, logical predicates, or proof obligations, this work focuses on preserving symbolic value dependencies as stable type-level invariants. This approach preserves symbolic expressiveness while avoiding the complexity of fully general dependent type theories, as explored in prior work on value-dependent typing and indexed types @paszke2021gettingpointindexsets, @secureDistributedProgrammingValueDependentTypes.
 
-To explore this design space in a controlled manner, the thesis uses ScaIR as a prototyping platform. ScaIR is a Scala-based intermediate representation that provides typed algebraic data types for IR construction, enabling rapid experimentation with type-system designs @edin_dal_scair. Using ScaIR allows conceptual questions about type-level abstraction, scoping, and substitution to be studied independently of MLIR’s C++ implementation constraints.
+To explore this design space in a controlled manner, the thesis uses ScaIR as a prototyping platform. ScaIR is a Scala-based MLIR implementation, that provides typed algebraic data types for IR construction, enabling rapid experimentation with type-system designs @edin_dal_scair. Using ScaIR allows conceptual questions about type-level abstraction, scoping, and substitution to be studied independently of MLIR’s C++ implementation constraints.
 
 Rather than introducing value-dependent types directly, the investigation proceeds incrementally. The central observation is that value-dependent typing is a principled generalization of type-level parametricity: both rely on type-level abstraction, scoping, and substitution, but differ in the domain over which parameters range. In parametric polymorphism, types are abstracted over type parameters, whereas in value-dependent typing, types are abstracted over program values. Parametric polymorphism therefore exercises a strict subset of the mechanisms required for value-dependent typing (abstraction, scoping, and substitution at the type level), while deliberately excluding any dependency on program values.
 
@@ -252,7 +251,7 @@ This example is schematic and serves to illustrate value-indexed types; the unde
 
 Rather than introducing fundamentally new abstraction or substitution mechanisms, this stage reuses the representation, scoping, and substitution machinery developed for parametric polymorphism and extends it to value-level parameters. Value-dependent types are introduced as a core IR mechanism, independent of any particular dialect or application domain.
 
-The key additional challenge in Stage 2 is that type parameters now range over program values rather than abstract type parameters. While SSA references already appear in Stage 1, they function there purely as type-level binders whose scoping constraints ensure only structural well-formedness. In Stage 2, SSA values embedded in types refer to computed program values, so dominance, lifetime, and region structure determine whether a value-dependent type is valid at its use sites.
+The key additional challenge in Stage 2 is that type parameters now range over program values rather than type parameters. While SSA references already appear in Stage 1, they function there purely as type-level binders whose scoping constraints ensure only structural well-formedness. In Stage 2, SSA values embedded in types refer to computed program values, so dominance, lifetime, and region structure determine whether a value-dependent type is valid at its use sites.
 
 As a consequence, value-dependent types require explicit well-formedness and preservation conditions that are enforced uniformly across the IR, including:
 
@@ -260,7 +259,7 @@ As a consequence, value-dependent types require explicit well-formedness and pre
 - region and lifetime constraints governing the validity of value-level parameters,
 - transformation-aware rewrite rules that preserve the meaning of SSA-valued type parameters under IR transformations.
 
-ScaIR is extended to support type expressions parameterized by SSA values and to enforce dominance- and region-aware well-formedness checks. Parser and printer support is extended accordingly to accommodate SSA-valued type parameters.
+//ScaIR is extended to support type expressions parameterized by SSA values and to enforce dominance- and region-aware well-formedness checks. Parser and printer support is extended accordingly to accommodate SSA-valued type parameters.
 
 This stage addresses the core technical question of the thesis: how a restricted form of dependent typing can be represented in an SSA-based IR while remaining well-formed and stable under transformations.
 
