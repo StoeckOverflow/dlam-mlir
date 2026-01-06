@@ -39,8 +39,9 @@
     (0.7, 0),
     block(width: 7cm)[
       *S -- Situation* \
-      Symbolic properties derived from runtime values (shapes, bounds, dimension relations) \
-      matter for correctness and performance, but are not preserved as type-level invariants in MLIR.
+      Symbolic properties derived from runtime values (shapes, bounds, dimension relations)
+      matter for correctness and performance and should ideally be preserved as stable invariants
+      (e.g., at the type level), but are difficult to maintain across abstraction levels and MLIR transformations.
     ],
     name: <S>,
   ),
@@ -49,8 +50,8 @@
     (0, 1),
     block(width: 7cm)[
       *C1 -- Complication (Core MLIR)* \
-      MLIR types are context-independent and cannot depend on SSA values or region-local structure; \
-      symbolic invariants derived from SSA values therefore cannot be preserved at the type level across passes.
+      MLIR types are context-independent and cannot reference SSA values or region-local structure; \
+      invariants that depend on SSA values therefore cannot be preserved at the type level across passes.
     ],
     name: <C1>,
   ),
@@ -151,7 +152,7 @@
 
 Modern compiler pipelines rely on symbolic program properties that depend on runtime values, such as tensor shapes, index bounds, and algebraic relations between dimensions. These properties are central to both correctness and performance. For example, matrix multiplication is well-defined only when specific dimension equalities hold, while optimizations such as tiling, fusion, vectorization, and buffer reuse depend on symbolic constraints over tensor extents.
 
-This reliance on symbolic reasoning over program values and their relationships is already evident in modern compiler systems:: tensor compilers such as TVM represent shapes and index expressions symbolically during scheduling and lowering, while systems like Halide explore parameterized schedule spaces whose legality and performance depend on symbolic bounds and extents (@chen2018tvm, @halide_pldi13).
+This reliance on symbolic reasoning over program values and their relationships is already evident in modern compiler systems: tensor compilers such as TVM represent shapes and index expressions symbolically during scheduling and lowering, while systems like Halide explore parameterized schedule spaces whose legality and performance depend on symbolic bounds and extents (@chen2018tvm, @halide_pldi13).
 
 To support correctness checking and optimization, compiler infrastructures and high-level domain-specific languages must therefore preserve and reason about symbolic properties throughout the compilation pipeline. Representing shape and index information symbolically, rather than treating it solely as runtime data, enables earlier detection of errors and more reliable optimization decisions.
 
@@ -178,7 +179,7 @@ Although MLIR supports rich symbolic reasoning at the value level through SSA gr
 
 == C2 -- Tensor Dialect and Application-Level Consequences
 
-At the tensor-dialect level, the inability of tensor types to depend on SSA values or value-level relationships prevents shape-related correctness and performance constraints from being represented as stable type-level invariants. As a result, relationships between tensor dimensions cannot be expressed directly at the type level.
+At the tensor-dialect level, shape and bounds constraints cannot be attached to tensor types in a way that remains stable across transformations. As a result, relationships between tensor dimensions cannot be expressed or enforced uniformly at the type level.
 
 Tensor dimensions that are computed dynamically, for example through shape arithmetic, loop bounds, or index calculations, must be represented as SSA values or attributes rather than as symbolic components of tensor types. As a result, MLIR tensor and vector types can encode individual dimensions as static integers or dynamic placeholders, but cannot express relationships between dimensions or global constraints that must hold simultaneously.
 
