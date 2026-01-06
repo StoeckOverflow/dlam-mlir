@@ -90,7 +90,7 @@
     (0, 3),
     block(width: 7cm)[
       *A1 -- Answer (MLIR Core)* \
-      Prototype in ScaIR a restricted form of dependent typing (value-dependent types): \
+      Prototype a restricted form of dependent typing (value-dependent types): \
       (1) parametric polymorphism via type variables; \
       (2) generalize to value parameters (SSA-valued type arguments) with scoping and rewrite rules under transformations.
     ],
@@ -179,7 +179,7 @@ Although MLIR supports rich symbolic reasoning at the value level through SSA gr
 
 == C2 -- Tensor Dialect and Application-Level Consequences
 
-At the tensor-dialect level, shape and bounds constraints cannot be attached to tensor types in a way that remains stable across transformations. As a result, relationships between tensor dimensions cannot be expressed or enforced uniformly at the type level.
+At the tensor-dialect level, shape and bounds constraints cannot be attached to tensor types as symbolic invariants in a way that remains stable across transformations. As a result, relationships between tensor dimensions cannot be expressed or enforced uniformly at the type level.
 
 Tensor dimensions that are computed dynamically, for example through shape arithmetic, loop bounds, or index calculations, must be represented as SSA values or attributes rather than as symbolic components of tensor types. As a result, MLIR tensor and vector types can encode individual dimensions as static integers or dynamic placeholders, but cannot express relationships between dimensions or global constraints that must hold simultaneously.
 
@@ -209,7 +209,7 @@ How can value-dependent types be used to express and preserve tensor shape invar
 
 To address the absence of stable type-level representations for symbolic program properties in MLIR, this thesis investigates whether and how a form of dependent types can be supported in an SSA-based intermediate representation without violating transformation stability or core MLIR invariants.
 
-Instead of pursuing full dependent typing, the thesis focuses on a restricted and compiler-oriented form of dependency, namely value-dependent types, in which types may depend on program values under explicitly defined scoping and transformation rules. This restriction preserves symbolic expressiveness while avoiding the complexity of general dependent type theories @paszke2021gettingpointindexsets, @secureDistributedProgrammingValueDependentTypes.
+Instead of pursuing full dependent typing, the thesis focuses on a restricted and compiler-oriented form of dependency, namely value-dependent types, in which types may depend on program values under explicitly defined scoping and transformation rules. This restriction preserves symbolic expressiveness while avoiding the complexity of fully general dependent type theories @paszke2021gettingpointindexsets, @secureDistributedProgrammingValueDependentTypes. Rather than introducing refinement types or logical constraints, this work focuses on preserving symbolic value dependencies as stable type-level invariants.
 
 To explore this design space in a controlled manner, the thesis uses ScaIR as a prototyping platform. ScaIR is a Scala-based intermediate representation that provides typed algebraic data types for IR construction, enabling rapid experimentation with type-system designs @edin_dal_scair. Using ScaIR allows conceptual questions about type-level abstraction, scoping, and substitution to be studied independently of MLIR’s C++ type uniquing and implementation constraints.
 
