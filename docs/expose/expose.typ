@@ -191,7 +191,7 @@ In particular:
 
 As a consequence, tensor-related compiler passes, including tiling, fusion, bufferization, and canonicalization, must repeatedly reconstruct symbolic shape constraints from SSA graphs, attributes, and pass-local analyses. These constraints remain operational, transient, and pass-specific, and transformations invalidate them. This design increases implementation complexity, requires repeated re-validation of correctness conditions, and reduces the robustness of shape-sensitive optimizations.
 
-Moreover, this approach prevents MLIR from preserving the shape-level correctness guarantees provided by shape-indexed type systems in high-level DSLs such as Rise, where array dimensions are tracked symbolically at the type level. It also precludes direct expression of value-indexed typing patterns, such as value-indexed tensor and index types (`Vector(n)`, `Idx(n)`) or shape-preserving function types, as studied in systems like ATTAPL, where bounds safety and shape consistency are enforced by construction rather than through repeated dynamic checks (see @pierce2024advanced, ch. 2, 9).
+Moreover, this approach makes it difficult for MLIR to preserve the shape-level correctness guarantees provided by shape-indexed type systems in high-level DSLs such as Rise @LuckeSS21, where array dimensions are tracked symbolically at the type level. It also precludes direct expression of value-indexed typing patterns, such as value-indexed tensor and index types (`Vector(n)`, `Idx(n)`) or shape-preserving function types, as studied in systems like ATTAPL, where bounds safety and shape consistency are enforced by construction rather than through repeated dynamic checks (see @pierce2024advanced, ch. 2, 9).
 
 = Research Questions (Q1, Q2)
 
@@ -209,7 +209,7 @@ How can value-dependent types be used to express and preserve tensor shape invar
 
 To address the absence of stable type-level representations for symbolic program properties in MLIR, this thesis investigates whether and how a form of dependent types can be supported in an SSA-based intermediate representation without violating transformation stability or core MLIR invariants.
 
-Instead of pursuing full dependent typing, the thesis focuses on a restricted and compiler-oriented form of dependency, namely value-dependent types, in which types may depend on program values under explicitly defined scoping and transformation rules. This restriction preserves symbolic value-level dependencies while avoiding the complexity of fully general dependent type theories @paszke2021gettingpointindexsets, @secureDistributedProgrammingValueDependentTypes. Rather than relying on refinement types or logical constraints, this work focuses on preserving symbolic value dependencies as stable type-level invariants.
+Instead of pursuing full dependent typing, the thesis focuses on a restricted form of dependency, namely value-dependent types, in which types may depend on program values under explicitly defined scoping and transformation rules. Rather than introducing refinement types, logical predicates, or proof obligations, this work focuses on preserving symbolic value dependencies as stable type-level invariants. This approach preserves symbolic expressiveness while avoiding the complexity of fully general dependent type theories, as explored in prior work on value-dependent typing and indexed types @paszke2021gettingpointindexsets, @secureDistributedProgrammingValueDependentTypes.
 
 To explore this design space in a controlled manner, the thesis uses ScaIR as a prototyping platform. ScaIR is a Scala-based intermediate representation that provides typed algebraic data types for IR construction, enabling rapid experimentation with type-system designs @edin_dal_scair. Using ScaIR allows conceptual questions about type-level abstraction, scoping, and substitution to be studied independently of MLIR’s C++ implementation constraints.
 
@@ -252,7 +252,9 @@ This example is schematic and serves to illustrate value-indexed types; the unde
 
 Rather than introducing fundamentally new abstraction or substitution mechanisms, this stage reuses the representation, scoping, and substitution machinery developed for parametric polymorphism and extends it to value-level parameters. Value-dependent types are introduced as a core IR mechanism, independent of any particular dialect or application domain.
 
-The key additional challenge in Stage 2 is that type parameters now range over program values rather than abstract type parameters. While SSA references already appear in Stage 1, they function there purely as type-level binders whose scoping constraints ensure only structural well-formedness. In Stage 2, SSA values denote computed program values, and dominance, lifetime, and region structure determine whether a value-dependent type is well-defined at its use sites, including:
+The key additional challenge in Stage 2 is that type parameters now range over program values rather than abstract type parameters. While SSA references already appear in Stage 1, they function there purely as type-level binders whose scoping constraints ensure only structural well-formedness. In Stage 2, SSA values embedded in types refer to computed program values, so dominance, lifetime, and region structure determine whether a value-dependent type is valid at its use sites.
+
+As a consequence, value-dependent types require explicit well-formedness and preservation conditions that are enforced uniformly across the IR, including:
 
 - dominance requirements ensuring that SSA values used in types are available at all type use sites,
 - region and lifetime constraints governing the validity of value-level parameters,
@@ -315,17 +317,14 @@ Value-indexed tensor types enable:
 
 Rather than introducing a full dependent type system or symbolic solver, this work demonstrates that a restricted, symbolic form of value dependence already yields substantial benefits for correctness and optimization.
 
-== Scope and deliverables.
-
-The thesis delivers (i) a ScaIR prototype supporting SSA-valued type parameters with well-formedness and transformation-aware rewrite behavior, and (ii) a tensor-focused case study using value-indexed shapes and index/bounds types. The scope intentionally excludes full dependent type theories or automated proof systems and instead evaluates feasibility and robustness under MLIR-style transformations and shape-sensitive legality checks.
-
+/*
 = Related Work
 
 == Rise
 
 Rise is a functional, pattern-based intermediate representation built on typed combinators such as `map` and `reduce`, operating over multi-dimensional arrays. Its type system is parametric over shape, allowing array dimensions to be tracked symbolically and enabling rewrite-based optimizations whose correctness depends on shape invariants @LuckeSS21.
 
-Rise demonstrates the value of expressing shape information at the type level. However, in its MLIR embedding, these shape-indexed types are not preserved directly. Shape information is lowered into values and attributes, and symbolic relationships between dimensions are no longer represented as type-level invariants. As a result, MLIR cannot retain the same shape-level guarantees that exist in Rise’s source-level type system.
+Rise demonstrates that expressing shape information at the type level enables strong correctness guarantees and principled optimization. However, when Rise programs are lowered into MLIR, these shape-indexed types are not preserved directly. Instead, shape information is translated into SSA values and attributes, and symbolic relationships between dimensions are no longer represented as type-level invariants. As a result, MLIR cannot retain the same shape-level guarantees that exist in Rise’s source-level type system.
 
 == MimIR
 
@@ -340,5 +339,6 @@ MLIR provides a shape inference framework and the `shape` dialect, which allow o
 However, shape reasoning in MLIR is deliberately confined to the value level. Shape functions operate over SSA values and attributes, and the results of shape computation are not reflected in the type system. Tensor types may contain static dimensions or dynamic placeholders, but they cannot encode symbolic relationships between dimensions or enforce shape invariants at the type level.
 
 As a consequence, MLIR cannot attach type-level legality preconditions (e.g., required equalities/divisibility constraints) to operations in a way that is preserved and checked uniformly across the pipeline.
+*/
 
 #bibliography("references.bib")
