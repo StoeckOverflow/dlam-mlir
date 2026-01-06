@@ -226,7 +226,7 @@ The first stage studies parametric polymorphism as a conceptual precursor to val
 
 $ #sym.Lambda (T: "Type"). #sym.lambda (x:T). x : forall sigma. sigma -> sigma $
 
-Here, $T$ is a type parameter and $sigma$ denotes a bound type variable (in de Bruijn form) referring to that parameter.
+Here, $T$ is a type parameter introduced by a type-level abstraction and $sigma$ denotes a bound type variable referring to that parameter, represented in de Bruijn form. The use of de Bruijn indices reflects that the variable is identified by its binding position rather than by name, making scoping and substitution explicit and avoiding reliance on named references at this stage.
 
 The first representation encodes type variables purely at the type level using de Bruijn indices. This encoding relies exclusively on mechanisms compatible with MLIR’s existing type system. Types may abstract over type parameters, but they do not reference SSA values. This implementation establishes a baseline and exposes the complexity of representing abstraction, substitution, and scoping entirely within the type system.
 
@@ -251,7 +251,7 @@ Building on the mechanisms established in Stage 1, Stage 2 generalizes type para
 
 $ #sym.Lambda (N: "Nat"). #sym.lambda (x: N."f32"). x : #sym.Pi (N:"Nat"). N."f32" -> N."f32" $
 
-This example is schematic and serves to illustrate value-dependent types; the underlying mechanism is independent of tensors or shape-specific abstractions.
+This example is schematic and serves to illustrate value-dependent types. The underlying mechanism is independent of tensors or shape-specific abstractions.
 
 Rather than introducing fundamentally new abstraction or substitution mechanisms, this stage reuses the representation, scoping, and substitution machinery developed for parametric polymorphism and extends it to value parameters. Value-dependent types are introduced as a core IR mechanism, independent of any particular dialect or application domain.
 
@@ -312,7 +312,7 @@ Applying value-dependent types to tensor abstractions shows how symbolic shape i
 Value-indexed tensor types enable:
 
 - preservation of symbolic shape relations as transformation-stable type-level invariants,
-- explicit representation of shape-related correctness conditions at the type level,
+- explicit representation of shape-related correctness assumptions at the type level,
 - enabling robust and uniform legality checks for tensor transformations,
 - closer alignment between MLIR and shape-indexed DSLs such as Rise.
 
