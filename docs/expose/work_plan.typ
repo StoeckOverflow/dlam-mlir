@@ -15,13 +15,13 @@ This phase studies parametric polymorphism as a precursor to value-dependent typ
 
 - Compare the two encodings with respect to:
   - complexity of abstraction and substitution,
-  - interaction with core IR transformations (RAUW, cloning, inlining),
-  - required scoping and dominance conditions.
+  - interaction with core IR transformations,
+  - required scoping and purely structural dominance conditions.
 
 - Identify and document limitations of parametric polymorphism without value dependence:
   - verbosity and fragility of de Bruijn-based encodings,
   - lack of connection between types and runtime-computed values,
-  - inability to express shape- or index-dependent program properties.
+  - inability to express shape-dependent program properties.
 
 This phase establishes parametric polymorphism as a strict subset of value-dependent typing and provides a concrete baseline for subsequent generalization.
 
@@ -29,32 +29,31 @@ This phase establishes parametric polymorphism as a strict subset of value-depen
 
 This phase generalizes parametric polymorphism to value-dependent types and investigates how types may depend on program values while remaining well-formed and stable under transformations.
 
-- Generalize type-level parameters from types to values (e.g. natural numbers) of the form:
+- Generalize type-level parameters from types to values (e.g. natural numbers represented as SSA values) of the form:
   $ #sym.Lambda (N: "Nat"). #sym.lambda (x:N."f32"). x : #sym.Pi (N:"Nat").N."f32" -> N."f32" $
 - Define precise well-formedness conditions for types that reference SSA values:
   - dominance of SSA values used in types,
   - region-scoping constraints,
   - lifetime and visibility of value-level parameters.
-- Define substitution behavior for SSA values appearing in types, mirroring RAUW-like transformations.
+Define substitution and rewriting behavior for SSA values appearing in types, aligned with IR transformations.
 - Analyze failure modes and boundary cases:
   - SSA values going out of scope,
   - interaction with cloning and inlining,
   - conditions under which type rewriting becomes necessary.
 
-- Implement value-dependent types in ScaIR using a structured representation that embeds SSA value references within types.
-- Support symbolic value parameters (e.g. natural numbers indexing shapes).
+- Implement value-dependent types in ScaIR using a structured representation that embeds SSA values within types.
+- Support symbolic value parameters (e.g. natural numbers).
 - Extend parser and printer support for SSA-valued type parameters, for example:
 
 ```mlir
 fun<!dlam.tvar<%U> -> !dlam.tvar<%U>>
-tensor<%n x f32>
 ```
 
 - Model interaction with IR transformations:
-  - RAUW-like replacement of value parameters,
+  - replacement of value parameters,
   - behavior under cloning, inlining, and region movement,
-  - treating SSA values in types as real dependencies for DCE.
-- Evaluate consistency under canonicalization, CSE, and related passes.
+  - treating SSA values in types as real dependencies for dead code elimination.
+- Evaluate consistency under canonicalization, common subexpression elimination, and related passes.
 - Use ScaIR as a reference environment to:
   - validate the design independently of MLIR’s C++ implementation constraints,
   - identify which MLIR invariants are essential for value-dependent typing,
@@ -71,9 +70,8 @@ This phase applies value-dependent types to tensor abstractions.
   tensor<%n x f32>
   vector<%m x i32>
   ```
-- Introduce value-indexed index and bounds types (e.g. Idx(n)).
-- Express shape compatibility, bounds safety, and tiling constraints as type-level invariants.
-- Encode legality conditions for tensor transformations (fusion, tiling, vectorization) at the type level.
+- Express shape compatibility and tiling preconditions as type-level invariants,
+- Encode legality conditions for tensor transformations (fusion, tiling, vectorization) at the type level,
 - Evaluate interaction with standard tensor and bufferization passes.
 
 == Phase 4 — Evaluation
@@ -82,13 +80,11 @@ The evaluation focuses on feasibility, stability, and expressiveness rather than
 
 === Correctness and Static Invariants
 
-- Demonstrate that value-dependent types detect shape and bounds errors not enforced by standard MLIR types.
-- Show how value-indexed tensor and index types prevent invalid accesses and shape mismatches by construction.
-
+- Demonstrate that value-dependent types detect shape inconsistencies not enforced by standard MLIR types.
 === Expressiveness
 
 - Compare the fidelity of lowering Rise-style shape-indexed types (e.g. N.M.f32) to standard MLIR encodings.
-- Encode ATTAPL-style value-indexed vectors and indices and assess expressiveness gains over standard MLIR types.
+- Encode ATTAPL-style value-indexed vectors and assess expressiveness gains over standard MLIR types.
 - Contrast the proposed approach with:
   - the de Bruijn-based baseline,
   - systems such as MimIR.
@@ -97,7 +93,7 @@ The evaluation focuses on feasibility, stability, and expressiveness rather than
 
 - Stress-test value-dependent types under:
   - RAUW, cloning, inlining, and region movement,
-  - CSE, DCE, LICM, canonicalization, and tensor transformations.
+  - common subexpression elimination, dead code elimination, canonicalization, and tensor transformations.
 - Assess whether SSA-valued type parameters remain well-scoped and consistent.
 
 === Invariant Robustness
