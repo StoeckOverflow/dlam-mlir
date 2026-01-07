@@ -237,13 +237,11 @@ At this stage, the implementation supports:
 - basic dominance and scoping checks to ensure structural well-formedness of SSA values in types,
 - compatibility with MLIR transformations.
 
-Dominance and scoping conditions are enforced solely to ensure structural well-formedness of SSA values used as type-level binders. These SSA values do not denote computed program values and carry no execution semantics. They function purely as symbolic references to type parameters. Consequently, their validity depends only on syntactic availability and scoping, not on lifetime, control flow, or region semantics.
-
-This distinction becomes crucial in the next stage, where SSA values embedded in types denote actual program values and therefore introduce semantic validity requirements, namely that such values must dominate all type use sites and remain valid with respect to region structure and lifetime across transformations.
+Dominance and scoping conditions are enforced solely to ensure structural well-formedness of SSA values used as type-level binders. These SSA values do not denote computed program values and carry no execution meaning, as they function purely as symbolic references to type parameters. In the next stage, this changes fundamentally: SSA values embedded in types denote results of computation. As a consequence, validity depends not only on dominance but also on region structure and value lifetime, which determine whether a referenced program value is meaningfully available at all type use sites and remains valid under IR transformations.
 
 === Stage 2: Value-Dependent Types via Value Parameters
 
-Stage 2 generalizes the mechanisms established in Stage 1 from type parameters to value parameters, which range over program values represented as SSA values in the IR. This generalization enables types whose structure depends on the results of computation and enables types of the form:
+Stage 2 generalizes the mechanisms established in Stage 1 from type parameters to value parameters, which range over program values represented as SSA values in the IR. This enables types whose structure depends on the results of computation, for example:
 
 $ #sym.Lambda (N: "Nat"). #sym.lambda (x: N."f32"). x : #sym.Pi (N:"Nat"). N."f32" -> N."f32" $
 
@@ -251,9 +249,9 @@ This example is schematic and serves to illustrate value-dependent types. The un
 
 Rather than introducing fundamentally new abstraction or substitution mechanisms, this stage reuses the representation, scoping, and substitution machinery developed for parametric polymorphism and extends it to value parameters. Value-dependent types are introduced as a core IR mechanism, independent of any particular dialect or application domain.
 
-Although SSA values in types already appear in Stage 1, they serve purely as binders for type parameters and are subject only to structural well-formedness checks, without any value-level interpretation. In Stage 2, SSA values embedded in types denote computed program values, so dominance, lifetime, and region structure determine whether a value-dependent type is valid at its use sites. As a result, type well-formedness in Stage 2 is no longer purely structural but depends on the semantic validity of SSA values.
+While SSA values already appear in types in Stage 1, they function there purely as binders for type parameters and are checked only for structural well-formedness. In Stage 2, SSA values embedded in types denote computed program values. Consequently, type well-formedness depends not only on structural scoping but also on whether the SSA values are valid program values at all type use sites.
 
-As a consequence, value-dependent types require explicit semantic well-formedness and preservation conditions that are enforced uniformly across the IR, beyond the purely structural checks of Stage 1, including:
+As a result, value-dependent types require additional well-formedness and preservation conditions that are enforced uniformly across the IR, including:
 
 - dominance requirements ensuring that SSA values used in types are available at all type use sites,
 - region and lifetime constraints governing the validity of value parameters,
@@ -280,7 +278,7 @@ This approach enables:
 - preservation of symbolic shape relationships across IR transformations as transformation-stable type-level invariants,
 - expression of legality conditions (e.g., shape compatibility, tiling preconditions) as type-level invariants rather than pass-local checks.
 
-The work intentionally avoids introducing an equational theory or normalization framework for shape expressions. Shape parameters are represented as SSA values and are therefore treated symbolically, with equality determined by SSA identity or by explicit constraints introduced in the IR. Because value-dependent types range over program values rather than symbolic expressions, there is no notion of implicit normalization or algebraic equivalence at the type level.
+The work intentionally avoids introducing an equational theory or normalization framework for shape expressions. Shape parameters are represented as SSA values and are therefore treated symbolically, with equality determined by SSA identity. Because value-dependent types range over program values rather than symbolic expressions, there is no notion of implicit normalization or algebraic equivalence at the type level.
 This design choice keeps the scope focused on feasibility and transformation stability within an SSA-based compiler IR.
 
 Case studies include:
