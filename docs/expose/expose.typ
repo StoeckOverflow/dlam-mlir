@@ -50,8 +50,8 @@
     (0, 1),
     block(width: 7cm)[
       *C1 -- Complication (Core MLIR)* \
-      MLIR types are context-independent and cannot reference SSA values or region-local structure; \
-      invariants that depend on SSA values therefore cannot be preserved at the type level across passes.
+      MLIR types are context-independent and cannot contain SSA values or region-local structure. \
+      Invariants that depend on SSA values therefore cannot be preserved at the type level across passes.
     ],
     name: <C1>,
   ),
@@ -92,7 +92,7 @@
       *A1 -- Answer (MLIR Core)* \
       Prototype a restricted form of dependent typing (value-dependent types): \
       (1) parametric polymorphism via type variables; \
-      (2) generalization to types referencing SSA values (program values), with explicit scoping and transformation-aware rewrite rules.
+      (2) generalization to types parameterized by SSA values (program values), with explicit scoping and transformation-aware rewrite rules.
     ],
     name: <A1>,
   ),
@@ -167,7 +167,7 @@ MLIR’s core type system, however, is deliberately restricted to non-dependent 
 
 This design choice is reflected in several core assumptions of the MLIR infrastructure:
 
-- types do not reference SSA values or region-local program structure,
+- types do not contain SSA values or region-local program structure,
 - type checking does not incorporate dominance or control-flow information,
 - IR transformations such as replace-all-uses-with, operation cloning, and function inlining are defined to preserve types and therefore do not rewrite them,
 - types are treated as closed descriptors that remain valid under arbitrary transformations.
@@ -178,9 +178,9 @@ Although MLIR supports rich symbolic reasoning at the value level through SSA gr
 
 == C2 -- Tensor Dialect and Application-Level Consequences
 
-At the tensor-dialect level, shape constraints cannot be attached to tensor types as symbolic invariants that remains stable across IR transformations. As a result, relationships between tensor dimensions cannot be expressed or enforced uniformly at the type level.
+At the tensor-dialect level, shape constraints cannot be attached to tensor types as symbolic invariants that remain stable across IR transformations. As a result, relationships between tensor dimensions cannot be expressed or enforced uniformly at the type level.
 
-Tensor dimensions that are computed dynamically, for example through shape arithmetic, must be represented as SSA values or attributes rather than as symbolic components of tensor types. As a result, MLIR tensor and vector types can encode individual dimensions as static integers or dynamic placeholders, but cannot express relationships between dimensions or global constraints that must hold simultaneously.
+Tensor dimensions that are computed dynamically, for example through shape arithmetic, are typically represented as SSA values or attributes rather than as symbolic components of tensor types. As a result, MLIR tensor and vector types can encode individual dimensions as static integers or dynamic placeholders, but cannot express relationships between dimensions or global constraints that must hold simultaneously.
 
 In particular:
 
@@ -224,7 +224,7 @@ Here, $T$ is a type parameter introduced by a type-level abstraction and $sigma$
 
 The two representations differ only in how references to the type parameter are represented: either positionally, using de Bruijn indices, or explicitly, using SSA values embedded in types.
 
-In the first representation, type abstraction introduces a type parameter, and references to that parameter are represented positionally via de Bruijn-indexed type variables. This encoding relies exclusively on MLIR-compatible type-level mechanisms: types abstract over parameters but do not reference SSA values. As a result, abstraction, substitution, and scoping are handled entirely within the type system, exposing the complexity of implementing these mechanisms without relying on IR-level structure.
+In the first representation, type abstraction introduces a type parameter, and references to that parameter are represented positionally via de Bruijn-indexed type variables. This encoding relies exclusively on MLIR-compatible type-level mechanisms: types abstract over parameters but do not contain SSA values. As a result, abstraction, substitution, and scoping are handled entirely within the type system, exposing the complexity of implementing these mechanisms without relying on IR-level structure.
 
 In the second representation, type abstraction is unchanged, but references to type parameters are represented using SSA values embedded in types. Although these parameters still range over types rather than program values, their SSA-based representation already requires several structural mechanisms later needed for value-dependent typing, including embedding SSA values into types, enforcing dominance and scoping conditions for well-formedness, and rewriting type-level references during IR transformations.
 
@@ -236,7 +236,7 @@ At this stage, the implementation supports:
 - type variables represented via SSA values embedded structurally in types (corresponding to type parameters),
 - universally quantified function types,
 - type-level abstraction, substitution, and instantiation,
-- basic dominance and scoping checks to ensure structural well-formedness of SSA references in types,
+- basic dominance and scoping checks to ensure structural well-formedness of SSA values in types,
 - compatibility with MLIR transformations.
 
 Dominance and scoping conditions are enforced solely to ensure structural well-formedness of SSA values used as type-level binders. These SSA values do not denote computed program values and carry no execution semantics. They function purely as symbolic references to type parameters. Consequently, their validity depends only on syntactic availability and scoping, not on lifetime, control flow, or region semantics.
@@ -253,7 +253,7 @@ This example is schematic and serves to illustrate value-dependent types. The un
 
 Rather than introducing fundamentally new abstraction or substitution mechanisms, this stage reuses the representation, scoping, and substitution machinery developed for parametric polymorphism and extends it to value parameters. Value-dependent types are introduced as a core IR mechanism, independent of any particular dialect or application domain.
 
-Although SSA references already appear in Stage 1, they serve purely as binders for type parameters and are subject only to structural well-formedness checks, without any value-level interpretation. In Stage 2, SSA values embedded in types denote computed program values, so dominance, lifetime, and region structure determine whether a value-dependent type is valid at its use sites. As a result, type well-formedness in Stage 2 is no longer purely structural but depends on the semantic validity of referenced SSA values within the IR.
+Although SSA values in types already appear in Stage 1, they serve purely as binders for type parameters and are subject only to structural well-formedness checks, without any value-level interpretation. In Stage 2, SSA values embedded in types denote computed program values, so dominance, lifetime, and region structure determine whether a value-dependent type is valid at its use sites. As a result, type well-formedness in Stage 2 is no longer purely structural but depends on the semantic validity of SSA values.
 
 As a consequence, value-dependent types require explicit semantic well-formedness and preservation conditions that are enforced uniformly across the IR, beyond the purely structural checks already exercised in Stage 1, including:
 
@@ -267,7 +267,7 @@ This stage addresses the core technical question of the thesis: how a restricted
 
 Having established value-dependent types as a core, transformation-stable mechanism, the thesis next applies this machinery to a concrete and practically important domain: tensor shapes.
 
-Tensor and vector types are extended with value-dependent parameters that encode shape dimensions using SSA values:
+Tensor and vector types are extended with value-dependent parameters that encode symbolic shape dimensions using SSA values:
 
 ```mlir
 tensor<%n x f32>
@@ -278,7 +278,7 @@ In standard MLIR, shape information resides at the value level (e.g., as results
 
 This approach enables:
 
-- tensor and vector types parameterized by SSA values, allowing symbolic shape parameters to be represented directly at the type level,
+- tensor and vector types parameterized by SSA values representing shape dimensions, allowing symbolic shape parameters to be represented directly at the type level,
 - preservation of symbolic shape relationships across IR transformations as transformation-stable type-level invariants,
 - expression of legality conditions (e.g., shape compatibility, tiling preconditions) as type-level invariants rather than pass-local checks.
 
