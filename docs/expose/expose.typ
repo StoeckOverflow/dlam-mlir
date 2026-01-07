@@ -50,7 +50,7 @@
     (0, 1),
     block(width: 7cm)[
       *C1 -- Complication (Core MLIR)* \
-      MLIR types are context-independent and cannot contain SSA values or region-local structure. \
+      MLIR types are context-independent and cannot contain SSA values or region-local structure.
       Invariants that depend on SSA values therefore cannot be preserved at the type level across passes.
     ],
     name: <C1>,
@@ -70,8 +70,7 @@
     (0, 2),
     block(width: 7cm)[
       *Q1 -- Question (Core MLIR)* \
-      How can value-dependent types be represented at the type level in MLIR while respecting its SSA-based structure \
-      and remaining stable under IR transformations?
+      How can value-dependent types be represented at the type level in MLIR while respecting its SSA-based structure and remaining stable under IR transformations?
     ],
     name: <Q1>,
   ),
@@ -80,8 +79,7 @@
     (1.5, 2),
     block(width: 7cm)[
       *Q2 -- Question (Tensor Dialect)* \
-      How can value-dependent types express and preserve tensor shape invariants relevant for correctness \
-      and optimization across tensor transformations?
+      How can value-dependent types express and preserve tensor shape invariants relevant for correctness and optimization across tensor transformations?
     ],
     name: <Q2>,
   ),
@@ -200,7 +198,7 @@ How can value-dependent types be represented at the type level in MLIR while res
 
 == Q2 -- Tensor Dialect
 
-How can value-dependent types be used to express and preserve tensor shape invariants that are relevant for correctness and optimization across tensor transformations?
+How can value-dependent types express and preserve tensor shape invariants relevant for correctness and optimization across tensor transformations?
 
 = Answers (A1, A2) and Approach
 
