@@ -253,7 +253,7 @@ Rather than introducing fundamentally new abstraction or substitution mechanisms
 
 Although SSA values in types already appear in Stage 1, they serve purely as binders for type parameters and are subject only to structural well-formedness checks, without any value-level interpretation. In Stage 2, SSA values embedded in types denote computed program values, so dominance, lifetime, and region structure determine whether a value-dependent type is valid at its use sites. As a result, type well-formedness in Stage 2 is no longer purely structural but depends on the semantic validity of SSA values.
 
-As a consequence, value-dependent types require explicit semantic well-formedness and preservation conditions that are enforced uniformly across the IR, beyond the purely structural checks already exercised in Stage 1, including:
+As a consequence, value-dependent types require explicit semantic well-formedness and preservation conditions that are enforced uniformly across the IR, beyond the purely structural checks of Stage 1, including:
 
 - dominance requirements ensuring that SSA values used in types are available at all type use sites,
 - region and lifetime constraints governing the validity of value parameters,
@@ -309,7 +309,7 @@ Applying value-dependent types to tensor abstractions shows how symbolic shape i
 Value-indexed tensor types enable:
 
 - preservation of symbolic shape relations as transformation-stable type-level invariants,
-- explicit representation of shape-related correctness assumptions at the type level,
+- explicit representation of shape-related legality assumptions at the type level,
 - enabling robust and uniform legality checks for tensor transformations,
 - closer alignment between MLIR and shape-indexed DSLs such as Rise.
 
